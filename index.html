@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tt-learning</title>
+<style>
+  :root {
+    --ground:#f6f7f8; --surface:#fff; --surface-2:#eef0f2;
+    --ink:#14181d; --ink-2:#3d474f; --muted:#6b7680;
+    --rule:#d9dde1; --rule-soft:#e8ebee;
+    --mem:#00918a; --cmp:#7a52d1; --op:#cc5f22;
+    --font-mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --font-serif: Charter, "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0f1418; --surface:#161c21; --surface-2:#1d242a;
+      --ink:#e6eaed; --ink-2:#b6c0c8; --muted:#8a949d;
+      --rule:#2b343b; --rule-soft:#222a30;
+      --mem:#12a396; --cmp:#8b64dc; --op:#dd7233;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0f1418; --surface:#161c21; --surface-2:#1d242a;
+    --ink:#e6eaed; --ink-2:#b6c0c8; --muted:#8a949d;
+    --rule:#2b343b; --rule-soft:#222a30;
+    --mem:#12a396; --cmp:#8b64dc; --op:#dd7233;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--ground);color:var(--ink);font-family:var(--font-serif);
+       font-size:17px;line-height:1.65;margin:0;padding:0 20px 90px;
+       -webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto}
+  header{padding:72px 0 38px;border-bottom:1px solid var(--rule);margin-bottom:44px}
+  .eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
+           text-transform:uppercase;color:var(--muted);margin:0 0 20px}
+  h1{font-family:var(--font-mono);font-size:clamp(36px,7vw,58px);font-weight:600;
+     letter-spacing:-.03em;line-height:1;margin:0 0 24px}
+  .lede{font-size:19px;line-height:1.55;color:var(--ink-2);margin:0;max-width:60ch;
+        text-wrap:pretty}
+  .cards{display:grid;gap:18px;margin:0 0 48px}
+  a.card{display:block;background:var(--surface);border:1px solid var(--rule);
+         border-left:2px solid var(--rule);border-radius:4px;padding:24px 26px;
+         text-decoration:none;color:inherit;transition:border-color .15s ease}
+  a.card:hover{border-color:var(--muted)}
+  a.card.one{border-left-color:var(--mem)} a.card.one:hover{border-left-color:var(--mem)}
+  a.card.two{border-left-color:var(--op)}  a.card.two:hover{border-left-color:var(--op)}
+  a.card:focus-visible{outline:2px solid var(--op);outline-offset:2px}
+  .card h2{font-family:var(--font-mono);font-size:16px;font-weight:600;
+           letter-spacing:-.01em;margin:0 0 4px}
+  .card .kind{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.11em;
+              text-transform:uppercase;color:var(--muted);display:block;margin-bottom:10px}
+  .card p{margin:0;font-size:15.5px;color:var(--ink-2);text-wrap:pretty}
+  h3{font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:.12em;
+     text-transform:uppercase;margin:0 0 14px;padding-bottom:10px;
+     border-bottom:1px solid var(--rule)}
+  p.body{color:var(--ink-2);max-width:64ch;text-wrap:pretty}
+  code{font-family:var(--font-mono);font-size:.87em;background:var(--surface-2);
+       padding:.12em .36em;border-radius:3px}
+  footer{border-top:1px solid var(--rule);padding-top:26px;margin-top:52px;
+         font-size:14px;color:var(--muted)}
+  footer a{color:var(--ink-2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Tenstorrent · kernel programming</p>
+    <h1>tt-learning</h1>
+    <p class="lede">
+      Self-contained learning material written while working through Tensix kernels on a
+      Wormhole N150. Each piece is one standalone HTML file — no build step, no dependencies.
+    </p>
+  </header>
+
+  <div class="cards">
+    <a class="card one" href="roofline/roofline.html">
+      <span class="kind">Interactive model</span>
+      <h2>Roofline</h2>
+      <p>
+        What bandwidth and compute throughput actually mean, how <code>GB/s</code>,
+        <code>TFLOP/s</code> and <code>FLOP/byte</code> connect, and where both hardware ceilings
+        come from on Wormhole and Blackhole. Includes a napkin derivation of arithmetic intensity
+        and a live chart with knobs for algorithm, data format, cores, fidelity and clock.
+      </p>
+    </a>
+
+    <a class="card two" href="roofline/ridge-test.html">
+      <span class="kind">Self-test · 19 statements</span>
+      <h2>Crossing the Ridge</h2>
+      <p>
+        True/false on which performance levers actually move a kernel between the memory-bound and
+        compute-bound regimes — and which only move you closer to a ceiling you were already under.
+      </p>
+    </a>
+  </div>
+
+  <h3>The idea both pages turn on</h3>
+  <p class="body">
+    There are <strong>two</strong> ways to cross the memory/compute boundary. Move yourself right by
+    raising arithmetic intensity — reuse, output blocking, lower-precision formats, fusion. Or move
+    the ridge left by raising achieved bandwidth — sharding, multicast, L1-resident operands — since
+    <code>ridge = peak &divide; bandwidth</code>.
+  </p>
+  <p class="body">
+    Everything else — core count, batching, circular-buffer depth, problem size — moves you
+    vertically toward a roof without ever changing which roof it is.
+  </p>
+
+  <footer>
+    Hardware figures derive from the public
+    <a href="https://github.com/tenstorrent/tt-metal">tt-metal</a> tech reports and are cited in each
+    page's footer. Source: <a href="https://github.com/dgolubovicTT/tt-learning">github.com/dgolubovicTT/tt-learning</a>.
+  </footer>
+
+</div>
+</body>
+</html>
