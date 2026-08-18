@@ -1,0 +1,477 @@
+<title>Crossing the Ridge</title>
+<style>
+  :root {
+    --ground: #f6f7f8;
+    --surface: #ffffff;
+    --surface-2: #eef0f2;
+    --ink: #14181d;
+    --ink-2: #3d474f;
+    --muted: #6b7680;
+    --rule: #d9dde1;
+    --rule-soft: #e8ebee;
+
+    --mem: #00918a;
+    --cmp: #7a52d1;
+    --op:  #cc5f22;
+
+    --ok:   #1f7a4d;
+    --ok-bg: rgba(31, 122, 77, 0.08);
+    --no:   #b4342a;
+    --no-bg: rgba(180, 52, 42, 0.08);
+
+    --font-mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --font-serif: Charter, "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0f1418;
+      --surface: #161c21;
+      --surface-2: #1d242a;
+      --ink: #e6eaed;
+      --ink-2: #b6c0c8;
+      --muted: #8a949d;
+      --rule: #2b343b;
+      --rule-soft: #222a30;
+
+      --mem: #12a396;
+      --cmp: #8b64dc;
+      --op:  #dd7233;
+
+      --ok:   #3fae74;
+      --ok-bg: rgba(63, 174, 116, 0.12);
+      --no:   #e0655a;
+      --no-bg: rgba(224, 101, 90, 0.12);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0f1418;
+    --surface: #161c21;
+    --surface-2: #1d242a;
+    --ink: #e6eaed;
+    --ink-2: #b6c0c8;
+    --muted: #8a949d;
+    --rule: #2b343b;
+    --rule-soft: #222a30;
+
+    --mem: #12a396;
+    --cmp: #8b64dc;
+    --op:  #dd7233;
+
+    --ok:   #3fae74;
+    --ok-bg: rgba(63, 174, 116, 0.12);
+    --no:   #e0655a;
+    --no-bg: rgba(224, 101, 90, 0.12);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-serif);
+    font-size: 17px;
+    line-height: 1.65;
+    margin: 0;
+    padding: 0 20px 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 780px; margin: 0 auto; }
+
+  header {
+    padding: 64px 0 36px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 12px;
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 20px;
+  }
+
+  h1 {
+    font-family: var(--font-mono);
+    font-size: clamp(34px, 6.5vw, 54px);
+    font-weight: 600; letter-spacing: -0.03em; line-height: 1;
+    margin: 0 0 24px; text-wrap: balance;
+  }
+
+  .lede {
+    font-size: 19px; line-height: 1.55; color: var(--ink-2);
+    margin: 0 0 8px; max-width: 60ch; text-wrap: pretty;
+  }
+
+  /* scoreboard */
+
+  .scorebar {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--ground);
+    border-bottom: 1px solid var(--rule);
+    padding: 14px 0 13px;
+    display: flex; align-items: baseline; gap: 26px; flex-wrap: wrap;
+    margin-bottom: 40px;
+  }
+
+  .score {
+    font-family: var(--font-mono); font-size: 13px; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .score b { color: var(--ink); font-size: 17px; font-weight: 600; }
+
+  .reset-btn {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted);
+    background: none; border: 1px solid var(--rule); border-radius: 3px;
+    padding: 5px 11px; cursor: pointer; margin-left: auto;
+  }
+  .reset-btn:hover { color: var(--ink); border-color: var(--muted); }
+
+  /* groups */
+
+  .group-title {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink);
+    margin: 52px 0 6px; padding-bottom: 10px; border-bottom: 1px solid var(--rule);
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  .group-title .gn { color: var(--muted); font-weight: 400; }
+
+  .group-sub {
+    font-size: 15.5px; color: var(--ink-2); margin: 14px 0 26px; max-width: 62ch;
+  }
+
+  /* question card */
+
+  .q {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 2px solid var(--rule);
+    border-radius: 4px;
+    padding: 22px 24px;
+    margin-bottom: 16px;
+  }
+  .q[data-state="ok"] { border-left-color: var(--ok); }
+  .q[data-state="no"] { border-left-color: var(--no); }
+
+  .q-num {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em;
+    color: var(--muted); display: block; margin-bottom: 8px;
+  }
+
+  .q-text { margin: 0 0 18px; font-size: 17px; text-wrap: pretty; }
+
+  .q-actions { display: flex; gap: 10px; }
+
+  .tf {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 8px 20px; border-radius: 3px; cursor: pointer;
+    background: var(--surface-2); color: var(--ink-2);
+    border: 1px solid var(--rule);
+  }
+  .tf:hover:not(:disabled) { border-color: var(--muted); color: var(--ink); }
+  .tf:disabled { cursor: default; opacity: 0.5; }
+  .tf[data-picked="1"] { opacity: 1; }
+  .tf[data-picked="1"][data-right="1"] {
+    background: var(--ok-bg); border-color: var(--ok); color: var(--ok);
+  }
+  .tf[data-picked="1"][data-right="0"] {
+    background: var(--no-bg); border-color: var(--no); color: var(--no);
+  }
+  .tf:focus-visible { outline: 2px solid var(--op); outline-offset: 2px; }
+
+  .answer { display: none; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--rule-soft); }
+  .q[data-state] .answer { display: block; }
+
+  .verdict {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+    letter-spacing: 0.06em; margin: 0 0 8px;
+  }
+  .verdict.t { color: var(--ok); }
+  .verdict.f { color: var(--no); }
+
+  .why { margin: 0; font-size: 15.5px; color: var(--ink-2); text-wrap: pretty; }
+
+  code {
+    font-family: var(--font-mono); font-size: 0.87em;
+    background: var(--surface-2); padding: 0.12em 0.36em; border-radius: 3px;
+  }
+
+  .u-mem { color: var(--mem); font-weight: 600; }
+  .u-cmp { color: var(--cmp); font-weight: 600; }
+  .u-op  { color: var(--op);  font-weight: 600; }
+
+  .summary {
+    background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 4px; padding: 28px 26px; margin-top: 56px;
+  }
+  .summary h2 {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 18px;
+  }
+  .summary p { margin: 0 0 14px; color: var(--ink-2); font-size: 16px; }
+  .summary p:last-child { margin-bottom: 0; }
+  .summary .axis {
+    font-family: var(--font-mono); font-size: 13px; color: var(--ink);
+    display: block; margin: 4px 0 2px;
+  }
+
+  footer {
+    border-top: 1px solid var(--rule); padding-top: 26px; margin-top: 64px;
+    font-size: 14px; color: var(--muted);
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Roofline · self-test</p>
+    <h1>Crossing the Ridge</h1>
+    <p class="lede">
+      Nineteen statements, one lever each. For every one, the question underneath is the same:
+      does this move you <em>across</em> the memory/compute boundary, or only closer to a ceiling
+      you were already under?
+    </p>
+  </header>
+
+  <div class="scorebar">
+    <span class="score">answered <b id="s-done">0</b> / 19</span>
+    <span class="score">correct <b id="s-ok">0</b></span>
+    <button class="reset-btn" id="reset">Reset</button>
+  </div>
+
+  <p class="group-sub" style="margin-top:0">
+    Assume a Wormhole N150 unless stated: 64 compute cores, ~195 GB/s achieved DRAM bandwidth,
+    ridge at 336 FLOP/byte at HiFi4. Answer from the model, not from memory of a benchmark.
+  </p>
+
+  <h2 class="group-title"><span class="gn">A</span> Concurrency &mdash; filling the pipe</h2>
+  <p class="group-sub">
+    Levers that change how well you use a ceiling. Watch whether any of them touch the FLOP-to-byte
+    ratio.
+  </p>
+  <div id="groupA"></div>
+
+  <h2 class="group-title"><span class="gn">B</span> Reuse &mdash; moving yourself right</h2>
+  <p class="group-sub">
+    Levers that change arithmetic intensity itself, by doing the same arithmetic over fewer bytes.
+  </p>
+  <div id="groupB"></div>
+
+  <h2 class="group-title"><span class="gn">C</span> The ridge is not nailed down</h2>
+  <p class="group-sub">
+    The subtle group. <code>ridge = peak &divide; bandwidth</code> &mdash; and both terms are things
+    you influence. The boundary can move toward you.
+  </p>
+  <div id="groupC"></div>
+
+  <h2 class="group-title"><span class="gn">D</span> Reading the result</h2>
+  <p class="group-sub">
+    Given a measurement, what regime are you actually in &mdash; and what follows from it.
+  </p>
+  <div id="groupD"></div>
+
+  <div class="summary">
+    <h2>The two ways across</h2>
+    <p>
+      Almost every mistake on this page comes from knowing only the first of these.
+    </p>
+    <p>
+      <span class="axis">1 &mdash; move yourself right</span>
+      Raise arithmetic intensity: reuse loaded tiles across more output (blocking), cut bytes per
+      element (bfp8), or fuse ops so one load feeds more arithmetic. This is the only lever that
+      changes what your <em>algorithm</em> is.
+    </p>
+    <p>
+      <span class="axis">2 &mdash; move the ridge left</span>
+      <code>ridge = peak &divide; bandwidth</code>. Raising achieved bandwidth &mdash; sharding,
+      multicast, operands resident in L1 &mdash; lowers the ridge and can bring it under you without
+      your kernel changing at all.
+    </p>
+    <p>
+      Everything else &mdash; core count, batching, CB depth, problem size &mdash; moves you
+      <strong>vertically</strong>, up toward whichever roof you are already beneath. Necessary work,
+      but it never changes which roof that is.
+    </p>
+    <p>
+      And note the trap in the other direction: more cores and lower fidelity both <em>raise</em>
+      peak, which pushes the ridge <em>right</em> and makes you more memory-bound, not less.
+    </p>
+  </div>
+
+  <footer>
+    Companion to the roofline model. Figures assume bfloat16 tiles of 32&times;32, a
+    multiply-accumulate counted as 2 FLOPs, and DRAM-resident operands.
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var Q = {
+    groupA: [
+      { t: "Increasing the number of cores from 1 to 32 can move a memory-bound matmul into the compute-bound regime.",
+        a: false,
+        w: "Core count changes neither FLOPs nor bytes, so intensity is untouched. Worse, it <em>raises</em> peak, which pushes the ridge further right — you end up more memory-bound, not less." },
+
+      { t: "Batching 8 NoC reads behind a single barrier increases arithmetic intensity.",
+        a: false,
+        w: "Identical bytes, identical arithmetic. Batching hides latency and amortises barrier cost, moving you up toward the memory roof — never right along it." },
+
+      { t: "Deepening a circular buffer from 2 to 8 pages can take a kernel across the ridge.",
+        a: false,
+        w: "CB depth governs how many bytes can be in flight, which is a utilisation question. The FLOP/byte ratio is unchanged." },
+
+      { t: "A single core cannot saturate DRAM bandwidth, no matter how deeply you batch.",
+        a: true,
+        w: "Little's Law: sustaining B bytes/s at latency L needs B·L bytes outstanding. One core cannot keep enough requests in flight, which is why lesson-04 style scaling is linear early on." },
+
+      { t: "Doubling Kt in an M×K×N matmul raises arithmetic intensity.",
+        a: false,
+        w: "FLOPs and bytes both scale with Kt, so it cancels out of the ratio — <code>65,536·Kt / 4096·Kt</code>. Problem size sets runtime, never regime." },
+
+      { t: "Doubling Kt roughly doubles the runtime of a memory-bound matmul.",
+        a: true,
+        w: "While pinned at the bandwidth ceiling, <code>time = bytes / BW</code>, and doubling Kt doubles the bytes." }
+    ],
+
+    groupB: [
+      { t: "2-D output blocking at Mb = Nb = 4 raises intensity roughly 4× over no blocking.",
+        a: true,
+        w: "Blocking gives <code>Mb·Nb</code> times the work for <code>(Mb + Nb)</code> times the traffic — a product over a sum. Intensity goes 16 → 64 FLOP/byte." },
+
+      { t: "Output blocking works by making the kernel perform more arithmetic per output tile.",
+        a: false,
+        w: "The total arithmetic is unchanged — it is the same matmul. Blocking moves <em>fewer bytes</em> by reusing each loaded tile across several outputs." },
+
+      { t: "Switching operands from bfloat16 to bfp8 doubles arithmetic intensity.",
+        a: true,
+        w: "Intensity scales as <code>1/B</code>: identical arithmetic over half the bytes. This is a genuine horizontal move, and one of the few available without restructuring the loop." },
+
+      { t: "Fusing two element-wise ops into one kernel raises arithmetic intensity.",
+        a: true,
+        w: "Two ops' worth of arithmetic on a single load/store round trip. Fusion is reuse in the time dimension rather than the spatial one." },
+
+      { t: "Multicasting one DRAM read to 8 cores raises chip-level arithmetic intensity.",
+        a: true,
+        w: "Same FLOPs, one eighth of the DRAM traffic for that operand. It is the fix for the redundant loads that naive parallelisation introduces." }
+    ],
+
+    groupC: [
+      { t: "Lowering math fidelity from HiFi4 to LoFi makes a kernel more likely to be compute-bound.",
+        a: false,
+        w: "The reverse. LoFi quadruples peak (65 → 262 TFLOP/s), so the ridge moves right from 336 to 1344 FLOP/byte — you become <em>more</em> memory-bound." },
+
+      { t: "Lowering math fidelity reduces the runtime of a memory-bound kernel.",
+        a: false,
+        w: "Arithmetic was never the constraint. Time is set by <code>bytes / BW</code>, which fidelity does not touch — you pay in accuracy and get nothing back." },
+
+      { t: "DRAM sharding can move a kernel across the ridge without changing its FLOP/byte ratio at all.",
+        a: true,
+        w: "The second way across. <code>ridge = peak / BW</code>, so raising achieved bandwidth from ~190 to ~240 GB/s lowers the ridge. The boundary moves to you rather than you to it." },
+
+      { t: "The ridge point is a fixed property of a given chip.",
+        a: false,
+        w: "It depends on peak (which fidelity and core count change) and on <em>achieved</em> bandwidth (which your memory layout changes). Both terms are partly yours." },
+
+      { t: "Adding cores raises the compute ceiling but can simultaneously lower chip-level intensity.",
+        a: true,
+        w: "Peak scales with cores, while independently each core redundantly re-reads shared operand tiles — more bytes for the same FLOPs. Both effects push you away from compute-bound." }
+    ],
+
+    groupD: [
+      { t: "A kernel measuring 193 GB/s against a ~195 GB/s ceiling and 5.3 TFLOP/s against a 65 TFLOP/s peak is memory-bound.",
+        a: true,
+        w: "Bandwidth pinned at its ceiling, arithmetic at 8% of peak. That is the definition, and it is exactly why fidelity changes leave such a kernel's runtime unmoved." },
+
+      { t: "A kernel achieving 20% of peak FLOP/s and 30% of peak bandwidth is memory-bound.",
+        a: false,
+        w: "It is neither. Both ceilings have headroom, so the limit is something the roofline has no axis for — latency, dispatch overhead, or load imbalance. Chasing bytes or FLOPs here wastes effort." },
+
+      { t: "Once compute-bound, raising arithmetic intensity further reduces runtime.",
+        a: false,
+        w: "Past the ridge, <code>time = FLOPs / peak</code>. More intensity buys nothing; cutting arithmetic — or raising the compute ceiling — is what helps." }
+    ]
+  };
+
+  var done = 0, right = 0, n = 0;
+  var sDone = document.getElementById("s-done");
+  var sOk = document.getElementById("s-ok");
+
+  function card(item, idx) {
+    var q = document.createElement("div");
+    q.className = "q";
+
+    var num = document.createElement("span");
+    num.className = "q-num";
+    num.textContent = "STATEMENT " + String(idx).padStart(2, "0");
+    q.appendChild(num);
+
+    var txt = document.createElement("p");
+    txt.className = "q-text";
+    txt.textContent = item.t;
+    q.appendChild(txt);
+
+    var acts = document.createElement("div");
+    acts.className = "q-actions";
+
+    var ans = document.createElement("div");
+    ans.className = "answer";
+    var verdict = document.createElement("p");
+    verdict.className = "verdict " + (item.a ? "t" : "f");
+    verdict.textContent = item.a ? "TRUE" : "FALSE";
+    var why = document.createElement("p");
+    why.className = "why";
+    why.innerHTML = item.w;
+    ans.appendChild(verdict);
+    ans.appendChild(why);
+
+    ["TRUE", "FALSE"].forEach(function (label) {
+      var b = document.createElement("button");
+      b.className = "tf";
+      b.type = "button";
+      b.textContent = label;
+      b.addEventListener("click", function () {
+        if (q.hasAttribute("data-state")) { return; }
+        var picked = (label === "TRUE");
+        var correct = (picked === item.a);
+        b.setAttribute("data-picked", "1");
+        b.setAttribute("data-right", correct ? "1" : "0");
+        q.setAttribute("data-state", correct ? "ok" : "no");
+        Array.prototype.forEach.call(acts.children, function (c) { c.disabled = true; });
+        done++; if (correct) { right++; }
+        sDone.textContent = done;
+        sOk.textContent = right;
+      });
+      acts.appendChild(b);
+    });
+
+    q.appendChild(acts);
+    q.appendChild(ans);
+    return q;
+  }
+
+  ["groupA", "groupB", "groupC", "groupD"].forEach(function (g) {
+    var host = document.getElementById(g);
+    Q[g].forEach(function (item) { n++; host.appendChild(card(item, n)); });
+  });
+
+  document.getElementById("reset").addEventListener("click", function () {
+    done = 0; right = 0;
+    sDone.textContent = "0"; sOk.textContent = "0";
+    Array.prototype.forEach.call(document.querySelectorAll(".q"), function (q) {
+      q.removeAttribute("data-state");
+      Array.prototype.forEach.call(q.querySelectorAll(".tf"), function (b) {
+        b.disabled = false;
+        b.removeAttribute("data-picked");
+        b.removeAttribute("data-right");
+      });
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+})();
+</script>
