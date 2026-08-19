@@ -1,28 +1,35 @@
 # tt-learning
 
-Self-contained learning material for Tenstorrent kernel programming — written
-while working through Tensix kernels on a Wormhole N150.
+Learning material for Tenstorrent hardware and software, organised by topic.
 
-Each piece is a single standalone HTML file with no build step and no external
-dependencies. Clone the repo and open one in a browser, or view them online if
-GitHub Pages is enabled.
+Each page is a single standalone HTML file with no build step and no external
+dependencies. Browse online at
+**[dgolubovictt.github.io/tt-learning](https://dgolubovictt.github.io/tt-learning/)**,
+or clone the repo and open any file directly in a browser.
 
-## Contents
+## Topics
 
-### `roofline/`
+### [Kernel programming](kernel-programming/)
 
-| File | What it is |
+Writing and reasoning about Tensix kernels, on a Wormhole N150.
+
+| Page | What it is |
 |---|---|
-| [`roofline.html`](roofline/roofline.html) | An interactive roofline model. What bandwidth and compute throughput actually mean, how `GB/s`, `TFLOP/s` and `FLOP/byte` connect, where both hardware ceilings come from on Wormhole and Blackhole, and a live chart with knobs for algorithm, data format, cores, fidelity and clock. |
-| [`ridge-test.html`](roofline/ridge-test.html) | A 19-statement true/false self-test on which performance levers actually move a kernel between the memory-bound and compute-bound regimes — and which only move you closer to a ceiling you were already under. |
+| [Roofline](kernel-programming/roofline.html) | Interactive performance model. What bandwidth and compute throughput actually mean, how `GB/s`, `TFLOP/s` and `FLOP/byte` connect, where both hardware ceilings come from on Wormhole and Blackhole, and a live chart with knobs for algorithm, data format, cores, fidelity and clock. |
+| [Crossing the Ridge](kernel-programming/test.html) | A 19-statement true/false self-test on which performance levers actually move a kernel between the memory-bound and compute-bound regimes. |
 
-The central idea in both: there are **two** ways to cross the memory/compute
-boundary. Move yourself right by raising arithmetic intensity (reuse, blocking,
-lower-precision formats, fusion), or move the ridge left by raising achieved
-bandwidth (sharding, multicast, L1-resident operands), since
-`ridge = peak ÷ bandwidth`. Everything else — core count, batching, circular
-buffer depth, problem size — moves you vertically toward a roof without ever
-changing which roof it is.
+## Layout
+
+```
+index.html            topic list
+_shell.css            shared styling for the index pages
+<topic>/
+  index.html          the topic's contents
+  <page>.html         standalone, self-contained
+```
+
+Adding a topic means creating a folder with its own `index.html` and linking it
+from the root index.
 
 ## Where the numbers come from
 

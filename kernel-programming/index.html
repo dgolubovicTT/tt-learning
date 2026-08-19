@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kernel Programming</title>
+<link rel="stylesheet" href="../_shell.css">
+</head>
+<body>
+<div class="wrap">
+
+  <p class="crumb"><a href="../">tt-learning</a> &nbsp;/&nbsp; kernel programming</p>
+
+  <header>
+    <h1>Kernel programming</h1>
+    <p class="lede">
+      Writing and reasoning about Tensix kernels, on a Wormhole N150.
+    </p>
+  </header>
+
+  <div class="list">
+    <a class="item" href="roofline.html">
+      <div class="row">
+        <h2>Roofline</h2>
+        <span class="meta">Interactive model</span>
+      </div>
+      <p>
+        What bandwidth and compute throughput actually mean, how <code>GB/s</code>,
+        <code>TFLOP/s</code> and <code>FLOP/byte</code> connect, and where both hardware ceilings
+        come from on Wormhole and Blackhole. Includes a napkin derivation of arithmetic intensity
+        and a live chart with knobs for algorithm, data format, cores, fidelity and clock.
+      </p>
+    </a>
+
+    <a class="item" href="test.html">
+      <div class="row">
+        <h2>Crossing the Ridge</h2>
+        <span class="meta">Self-test · 19 statements</span>
+      </div>
+      <p>
+        True/false on which performance levers actually move a kernel between the memory-bound and
+        compute-bound regimes — and which only move you closer to a ceiling you were already under.
+      </p>
+    </a>
+  </div>
+
+  <footer>
+    Hardware figures derive from the public
+    <a href="https://github.com/tenstorrent/tt-metal">tt-metal</a> tech reports and are cited in
+    each page's footer.
+  </footer>
+
+</div>
+</body>
+</html>
