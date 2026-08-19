@@ -22,7 +22,7 @@ Writing and reasoning about Tensix kernels, on a Wormhole N150.
 
 ```
 index.html            topic list
-_shell.css            shared styling for the index pages
+shell.css             shared styling for the index pages
 <topic>/
   index.html          the topic's contents
   <page>.html         standalone, self-contained
