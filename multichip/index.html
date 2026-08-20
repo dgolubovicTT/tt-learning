@@ -20,10 +20,22 @@
   </header>
 
   <div class="list">
+    <a class="item" href="megatron-on-a-mesh.html">
+      <div class="row">
+        <h2>Megatron on a Mesh</h2>
+        <span class="meta">Start here</span>
+      </div>
+      <p>
+        Why a 70B model gets split the way it does. The two ways to cut a matmul, why chaining them cancels the
+        communication cost, and a full decoder layer with every collective marked &#8212; so you can see at a glance
+        where the big all-gathers live and why Galaxy pays two more than a T3K.
+      </p>
+    </a>
+
     <a class="item" href="ccl-call.html">
       <div class="row">
         <h2>Reading a CCL Call</h2>
-        <span class="meta">Reference</span>
+        <span class="meta">Reference &#183; read second</span>
       </div>
       <p>
         What <code>cluster_axis</code>, <code>num_links</code> and <code>topology</code> each control, and why they
