@@ -351,6 +351,90 @@
         good on its own &mdash; each has a cost at one end.</figcaption>
     </figure>
 
+    <h3>What "partial" actually means</h3>
+
+    <p>That word does a lot of work later, so it is worth one paragraph. A matmul is a sum: every output element
+      <code>Y[s,n]</code> is a sum over the contracted dimension <code>K</code>. Row-parallel splits <code>K</code>
+      &mdash; which means it splits <em class="term">the sum itself</em>. Each chip computes a correct-shaped answer
+      over only its own slice of the terms.</p>
+
+    <figure class="fig-narrow">
+      <div class="fig-frame">
+        <svg viewBox="0 0 660 348" role="img" aria-label="Why row-parallel produces partial outputs. On one chip, Y equals the sum over all of K of X times W. When K is split across two chips, X is cut vertically and W is cut horizontally along the same K dimension, so chip zero holds the terms for k below K over two and chip one holds the terms for k above. Each chip's product has the full output shape but sums only half the terms, so the true Y is the elementwise sum of the two. That addition is the collective.">
+          <defs>
+            <marker id="p1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <!-- ===== one chip ===== -->
+          <text x="20" y="18" font-family="ui-monospace, monospace" font-size="11.5" font-weight="600" fill="var(--ink)">On one chip</text>
+
+          <text x="64" y="42" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" text-anchor="middle">X  [S, K]</text>
+          <rect x="20" y="48" width="88" height="50" fill="var(--surface-2)" stroke="var(--ink-2)" stroke-width="1.5"/>
+          <text x="118" y="78" font-family="ui-monospace, monospace" font-size="13" fill="currentColor" text-anchor="middle">&#215;</text>
+          <text x="162" y="42" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" text-anchor="middle">W  [K, N]</text>
+          <rect x="132" y="48" width="60" height="50" fill="var(--surface-2)" stroke="var(--ink-2)" stroke-width="1.5"/>
+          <text x="202" y="78" font-family="ui-monospace, monospace" font-size="13" fill="currentColor" text-anchor="middle">=</text>
+          <text x="260" y="42" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" text-anchor="middle">Y  [S, N]</text>
+          <rect x="216" y="48" width="88" height="50" fill="var(--local-wash)" stroke="var(--local)" stroke-width="1.5"/>
+
+          <text x="336" y="66" font-family="ui-monospace, monospace" font-size="11.5" fill="var(--ink)">Y[s,n] = &#931; X[s,k] &#183; W[k,n]</text>
+          <text x="336" y="86" font-family="ui-monospace, monospace" font-size="10.5" fill="currentColor">the sum runs over every k from 0 to K</text>
+
+          <line x1="20" y1="118" x2="640" y2="118" stroke="var(--rule)" stroke-width="1"/>
+
+          <!-- ===== split K ===== -->
+          <text x="20" y="142" font-family="ui-monospace, monospace" font-size="11.5" font-weight="600" fill="var(--ink)">Split K across two chips</text>
+          <text x="20" y="159" font-family="ui-monospace, monospace" font-size="10.5" fill="currentColor">the same cut shows up vertically in X and horizontally in W &#8212; both are the K axis</text>
+
+          <!-- chip 0 -->
+          <text x="20" y="184" font-family="ui-monospace, monospace" font-size="10" font-weight="600" fill="var(--ccl)">chip 0</text>
+          <rect x="66" y="176" width="42" height="40" fill="var(--surface-2)" stroke="var(--ink-2)" stroke-width="1.5"/>
+          <text x="87" y="201" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink)" text-anchor="middle">X&#8320;</text>
+          <rect x="108" y="176" width="42" height="40" fill="none" stroke="var(--rule)" stroke-width="1" stroke-dasharray="3 3"/>
+          <text x="160" y="201" font-family="ui-monospace, monospace" font-size="13" fill="currentColor" text-anchor="middle">&#215;</text>
+          <rect x="174" y="176" width="60" height="20" fill="var(--surface-2)" stroke="var(--ink-2)" stroke-width="1.5"/>
+          <text x="204" y="190" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--ink)" text-anchor="middle">W&#8320;</text>
+          <rect x="174" y="196" width="60" height="20" fill="none" stroke="var(--rule)" stroke-width="1" stroke-dasharray="3 3"/>
+          <text x="244" y="201" font-family="ui-monospace, monospace" font-size="13" fill="currentColor" text-anchor="middle">=</text>
+          <rect x="258" y="176" width="80" height="40" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="1.5"/>
+          <text x="298" y="201" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink)" text-anchor="middle">Y&#8320; [S, N]</text>
+          <text x="356" y="195" font-family="ui-monospace, monospace" font-size="10.5" fill="currentColor">full output shape,</text>
+          <text x="356" y="209" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ccl)">but only the terms k &lt; K/2</text>
+
+          <!-- chip 1 -->
+          <text x="20" y="248" font-family="ui-monospace, monospace" font-size="10" font-weight="600" fill="var(--ccl)">chip 1</text>
+          <rect x="66" y="240" width="42" height="40" fill="none" stroke="var(--rule)" stroke-width="1" stroke-dasharray="3 3"/>
+          <rect x="108" y="240" width="42" height="40" fill="var(--surface-2)" stroke="var(--ink-2)" stroke-width="1.5"/>
+          <text x="129" y="265" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink)" text-anchor="middle">X&#8321;</text>
+          <text x="160" y="265" font-family="ui-monospace, monospace" font-size="13" fill="currentColor" text-anchor="middle">&#215;</text>
+          <rect x="174" y="240" width="60" height="20" fill="none" stroke="var(--rule)" stroke-width="1" stroke-dasharray="3 3"/>
+          <rect x="174" y="260" width="60" height="20" fill="var(--surface-2)" stroke="var(--ink-2)" stroke-width="1.5"/>
+          <text x="204" y="274" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--ink)" text-anchor="middle">W&#8321;</text>
+          <text x="244" y="265" font-family="ui-monospace, monospace" font-size="13" fill="currentColor" text-anchor="middle">=</text>
+          <rect x="258" y="240" width="80" height="40" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="1.5"/>
+          <text x="298" y="265" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink)" text-anchor="middle">Y&#8321; [S, N]</text>
+          <text x="356" y="259" font-family="ui-monospace, monospace" font-size="10.5" fill="currentColor">same shape again,</text>
+          <text x="356" y="273" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ccl)">the terms k &#8805; K/2</text>
+
+          <!-- the sum -->
+          <line x1="258" y1="296" x2="258" y2="312" stroke="currentColor" stroke-width="1.5"/>
+          <text x="20" y="322" font-family="ui-monospace, monospace" font-size="12" font-weight="600" fill="var(--ink)">Y  =  Y&#8320;  +  Y&#8321;</text>
+          <text x="150" y="322" font-family="ui-monospace, monospace" font-size="11" fill="var(--ccl)">&#8592; neither chip is wrong; both are incomplete</text>
+          <text x="150" y="338" font-family="ui-monospace, monospace" font-size="11" fill="var(--ccl)">&#8592; performing this addition IS the collective</text>
+        </svg>
+      </div>
+      <figcaption><b>A partial is not a slice &mdash; it is a half-finished sum.</b> Both chips produce something of
+        the full output shape, and both are missing terms. That is why row-parallel cannot avoid a collective, and why
+        the collective is an <em class="term">addition</em> rather than a concatenation.</figcaption>
+    </figure>
+
+    <p>This also explains the naming. <code>all_reduce</code> adds the pieces and leaves the whole result on every
+      chip; <code>reduce_scatter</code> adds them and hands each chip only the slice it will need next. Same addition,
+      different delivery &mdash; and since a decoder wants its residual stream fractured anyway,
+      <code>reduce_scatter</code> is usually the right one.</p>
+
     <h3>Chaining them cancels the costs</h3>
 
     <p>Notice that the two requirements are complements. Column-parallel <em class="term">produces</em> exactly the
@@ -410,91 +494,252 @@
       more data than gathering the block output. The pairing moves the collective to the narrow end of the graph.</p>
   </section>
 
-  <section id="mapping">
+  <section id="attention">
     <div class="sec-head">
-      <span class="sec-tag">Onto the model</span>
-      <h2>Which axis gets cut, in attention and MLP</h2>
+      <span class="sec-tag">Sublayer one</span>
+      <h2>Attention, weight by weight</h2>
     </div>
 
-    <p>Both sublayers of a transformer block happen to be exactly this pair, which is why the scheme fits so cleanly.</p>
+    <p>Now the same pair inside a real sublayer. The column below is what runs; the middle column is the
+      <em class="term">weight</em> and how it was cut, because that is what decides everything; the left column is the
+      state of the activation, shown only where it changes.</p>
 
     <div class="t-scroll">
       <table>
-        <thead>
-          <tr><th>Sublayer</th><th>Column-parallel</th><th>Split along</th><th>Row-parallel</th><th>Collective</th></tr>
-        </thead>
+        <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
         <tbody>
-          <tr>
-            <td>Attention</td><td><code>W_qkv</code></td><td>heads</td><td><code>W_o</code></td>
-            <td>one reduce</td>
-          </tr>
-          <tr>
-            <td>MLP</td><td><code>w1</code>, <code>w3</code></td><td>hidden dim</td><td><code>w2</code></td>
-            <td>one reduce</td>
-          </tr>
+          <tr><td class="num">fractured</td><td>each chip holds a <em class="term">different</em> slice; concatenating gives the whole tensor</td></tr>
+          <tr><td class="num">gathered</td><td>every chip holds the <em class="term">same</em> complete tensor</td></tr>
+          <tr><td class="num">partial</td><td>every chip holds a full-shaped tensor summing only some of the terms &mdash; must be reduced</td></tr>
+          <tr><td class="num">S &#183; H &#183; N</td><td>sequence length &#183; model dim (<code>args.dim</code>, 8192 for Llama-70B) &#183; chips in the TP group</td></tr>
         </tbody>
       </table>
     </div>
 
-    <p>In attention the cut is along <strong>heads</strong>, and that choice does more work than it looks. Because each
-      chip owns a whole head &mdash; its Q, its K, its V &mdash; the entire attention core runs locally: the scores,
-      the softmax, the value-weighted sum. <strong>SDPA needs no communication at all.</strong> The KV cache is
-      partitioned by head for free, as a consequence.</p>
+    <p class="legend">
+      <span><i class="sw sw-loc"></i> compute &#8212; nothing crosses a wire</span>
+      <span><i class="sw sw-ccl"></i> collective &#8212; data crosses ethernet</span>
+    </p>
+
+    <figure class="fig-narrow">
+      <div class="fig-frame">
+        <svg viewBox="0 0 710 578" role="img" aria-label="The attention sublayer as seven steps, with each weight shown and labelled by how it is cut. The activation enters fractured. all_gather makes it gathered. rms_norm leaves it gathered. The W_qkv linear uses a column-parallel weight whose columns are heads, so its output is fractured by head. sdpa runs on whole heads and needs no communication. The W_o linear uses a row-parallel weight cut along the contracted axis, so every chip produces a partial sum. reduce_scatter adds the partials and hands back a fractured slice, and the residual add is elementwise on matching layouts.">
+          <defs>
+            <marker id="f1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <text x="138" y="16" font-family="ui-monospace, monospace" font-size="10" font-weight="600" fill="var(--muted)" text-anchor="end">ACTIVATION STATE</text>
+          <text x="418" y="16" font-family="ui-monospace, monospace" font-size="10" font-weight="600" fill="var(--muted)">WEIGHT, AND HOW IT IS CUT</text>
+
+          <text x="138" y="34" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ink-2)" text-anchor="end">fractured [S, H/N]</text>
+          <line x1="272" y1="22" x2="272" y2="42" stroke="currentColor" stroke-width="1.5" marker-end="url(#f1)"/>
+
+          <rect x="152" y="44" width="240" height="38" rx="3" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
+          <text x="272" y="68" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">all_gather   dim=3</text>
+          <line x1="272" y1="82" x2="272" y2="118" stroke="currentColor" stroke-width="1.5" marker-end="url(#f1)"/>
+          <text x="138" y="104" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ccl)" text-anchor="end">gathered [S, H]</text>
+
+          <rect x="152" y="120" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="272" y="144" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">rms_norm</text>
+          <line x1="272" y1="158" x2="272" y2="194" stroke="currentColor" stroke-width="1.5" marker-end="url(#f1)"/>
+
+          <rect x="152" y="196" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="272" y="220" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">linear   W_qkv</text>
+          <rect x="418" y="196" width="76" height="38" fill="var(--local-wash)" stroke="var(--local)" stroke-width="1.5"/>
+          <line x1="437" y1="196" x2="437" y2="234" stroke="var(--local)" stroke-width="1.2"/>
+          <line x1="456" y1="196" x2="456" y2="234" stroke="var(--local)" stroke-width="1.2"/>
+          <line x1="475" y1="196" x2="475" y2="234" stroke="var(--local)" stroke-width="1.2"/>
+          <text x="506" y="206" font-family="ui-monospace, monospace" font-size="10.5" font-weight="600" fill="var(--ink)">column-parallel</text>
+          <text x="506" y="220" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">N split &#183; columns are heads</text>
+          <text x="506" y="234" font-family="ui-monospace, monospace" font-size="10" fill="var(--local)">&#8594; each chip owns whole heads</text>
+          <line x1="272" y1="234" x2="272" y2="270" stroke="currentColor" stroke-width="1.5" marker-end="url(#f1)"/>
+          <text x="138" y="256" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--local)" text-anchor="end">fractured by head</text>
+
+          <rect x="152" y="272" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="272" y="296" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">sdpa   is_causal</text>
+          <text x="418" y="290" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">no weight &#8212; Q, K, V for a whole</text>
+          <text x="418" y="304" font-family="ui-monospace, monospace" font-size="10" fill="var(--local)">head are all on the same chip</text>
+          <line x1="272" y1="310" x2="272" y2="346" stroke="currentColor" stroke-width="1.5" marker-end="url(#f1)"/>
+
+          <rect x="152" y="348" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="272" y="372" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">linear   W_o</text>
+          <rect x="418" y="348" width="76" height="38" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="1.5"/>
+          <line x1="418" y1="357.5" x2="494" y2="357.5" stroke="var(--ccl)" stroke-width="1.2"/>
+          <line x1="418" y1="367" x2="494" y2="367" stroke="var(--ccl)" stroke-width="1.2"/>
+          <line x1="418" y1="376.5" x2="494" y2="376.5" stroke="var(--ccl)" stroke-width="1.2"/>
+          <text x="506" y="358" font-family="ui-monospace, monospace" font-size="10.5" font-weight="600" fill="var(--ink)">row-parallel</text>
+          <text x="506" y="372" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">K split &#183; the contracted axis</text>
+          <text x="506" y="386" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)">&#8594; each chip holds a partial sum</text>
+          <line x1="272" y1="386" x2="272" y2="422" stroke="currentColor" stroke-width="1.5" marker-end="url(#f1)"/>
+          <text x="138" y="408" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ccl)" text-anchor="end">partial [S, H]</text>
+
+          <rect x="152" y="424" width="240" height="38" rx="3" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
+          <text x="272" y="448" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">reduce_scatter   dim=3</text>
+          <text x="418" y="442" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)">adds the partials, then keeps</text>
+          <text x="418" y="456" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)">only this chip&#8217;s slice</text>
+          <line x1="272" y1="462" x2="272" y2="498" stroke="currentColor" stroke-width="1.5" marker-end="url(#f1)"/>
+          <text x="138" y="484" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ink-2)" text-anchor="end">fractured [S, H/N]</text>
+
+          <rect x="152" y="500" width="240" height="38" rx="3" fill="var(--surface)" stroke="var(--resid)" stroke-width="1.5"/>
+          <text x="272" y="524" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">add   residual</text>
+          <text x="418" y="518" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">the residual was never gathered,</text>
+          <text x="418" y="532" font-family="ui-monospace, monospace" font-size="10" fill="var(--resid)">so both sides already match</text>
+
+          <text x="272" y="566" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink-2)" text-anchor="middle">out &#183; fractured [S, H/N]</text>
+        </svg>
+      </div>
+      <figcaption>The attention sublayer. <b>Read the middle column first:</b> <code>W_qkv</code> is cut down its
+        columns and <code>W_o</code> across its rows, and every state in the left column follows from those two
+        cuts.</figcaption>
+    </figure>
+
+    <h3>Why the cut in <code>W_qkv</code> is along heads</h3>
+
+    <p>A column-parallel weight can be cut anywhere along <code>N</code>, but the columns of <code>W_qkv</code> are not
+      interchangeable &mdash; they come in groups of <code>head_dim</code> that belong to one head. Cutting on a head
+      boundary means a chip receives the Q, K <em class="term">and</em> V columns of the same heads.</p>
+
+    <p>That is what makes the next box free. <code>sdpa</code> only ever mixes a head with itself: scores, softmax and
+      the value-weighted sum all stay inside one head, so if a head lives entirely on one chip the whole attention core
+      runs with no communication. The KV cache is partitioned by head as a side effect, at no extra cost.</p>
 
 <pre><code><span class="c-cmt"># models/tt_transformers/tt/model_config.py:694</span>
 self.n_local_heads = self.n_heads // self.cluster_shape[<span class="c-cmt">1</span>]</code></pre>
 
-    <p>Which is also why the config asserts that <code>n_heads</code> and <code>n_kv_heads</code> divide evenly by the
-      device count &mdash; a head cannot be split across chips without breaking that property.</p>
+    <p>Which is why the config asserts up front that <code>n_heads</code> and <code>n_kv_heads</code> divide evenly by
+      the device count. Split a head across two chips and <code>sdpa</code> would need a collective of its own.</p>
+
+    <p>Then <code>W_o</code> maps <code>[n_heads &#183; head_dim] &#8594; [H]</code>, and its contracted axis is exactly
+      the axis <code>W_qkv</code> just fractured. Cutting it row-wise makes the two weights fit together with nothing
+      in between &mdash; the conjugate pair, in a real sublayer.</p>
   </section>
 
-  <section id="decoder">
+  <section id="mlp">
     <div class="sec-head">
-      <span class="sec-tag">The whole block</span>
-      <h2>Where the collectives actually are</h2>
+      <span class="sec-tag">Sublayer two</span>
+      <h2>MLP, weight by weight</h2>
     </div>
 
-    <p>Here is one decoder layer with every collective marked. The invariant that makes it readable is stated in the
-      code itself, in three comments in <code>decoder.py</code>:</p>
+    <p>Structurally identical, which is the point &mdash; only the dimension being cut changes. Here it is
+      <code>F</code>, the FFN inner dim (<code>args.hidden_dim</code>, 28672 for Llama-70B).</p>
+
+    <figure class="fig-narrow">
+      <div class="fig-frame">
+        <svg viewBox="0 0 710 578" role="img" aria-label="The MLP sublayer as seven steps with weights shown. The activation enters fractured, all_gather makes it gathered, rms_norm leaves it gathered. The w1 and w3 linears use column-parallel weights cut along the FFN inner dimension F, so their outputs are fractured along F. The SiLU multiply combines two tensors that are fractured along F identically, so it needs no communication. The w2 linear is row-parallel with F as its contracted axis, producing partial sums, and reduce_scatter adds them and returns a fractured slice before the residual add.">
+          <defs>
+            <marker id="f2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <text x="138" y="16" font-family="ui-monospace, monospace" font-size="10" font-weight="600" fill="var(--muted)" text-anchor="end">ACTIVATION STATE</text>
+          <text x="418" y="16" font-family="ui-monospace, monospace" font-size="10" font-weight="600" fill="var(--muted)">WEIGHT, AND HOW IT IS CUT</text>
+
+          <text x="138" y="34" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ink-2)" text-anchor="end">fractured [S, H/N]</text>
+          <line x1="272" y1="22" x2="272" y2="42" stroke="currentColor" stroke-width="1.5" marker-end="url(#f2)"/>
+
+          <rect x="152" y="44" width="240" height="38" rx="3" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
+          <text x="272" y="68" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">all_gather   dim=3</text>
+          <line x1="272" y1="82" x2="272" y2="118" stroke="currentColor" stroke-width="1.5" marker-end="url(#f2)"/>
+          <text x="138" y="104" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ccl)" text-anchor="end">gathered [S, H]</text>
+
+          <rect x="152" y="120" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="272" y="144" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">rms_norm</text>
+          <line x1="272" y1="158" x2="272" y2="194" stroke="currentColor" stroke-width="1.5" marker-end="url(#f2)"/>
+
+          <rect x="152" y="196" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="272" y="220" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">linear   w1, w3</text>
+          <rect x="418" y="196" width="76" height="38" fill="var(--local-wash)" stroke="var(--local)" stroke-width="1.5"/>
+          <line x1="437" y1="196" x2="437" y2="234" stroke="var(--local)" stroke-width="1.2"/>
+          <line x1="456" y1="196" x2="456" y2="234" stroke="var(--local)" stroke-width="1.2"/>
+          <line x1="475" y1="196" x2="475" y2="234" stroke="var(--local)" stroke-width="1.2"/>
+          <text x="506" y="206" font-family="ui-monospace, monospace" font-size="10.5" font-weight="600" fill="var(--ink)">column-parallel</text>
+          <text x="506" y="220" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">F split &#183; the FFN inner dim</text>
+          <text x="506" y="234" font-family="ui-monospace, monospace" font-size="10" fill="var(--local)">&#8594; both cut the same way</text>
+          <line x1="272" y1="234" x2="272" y2="270" stroke="currentColor" stroke-width="1.5" marker-end="url(#f2)"/>
+          <text x="138" y="256" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--local)" text-anchor="end">fractured [S, F/N]</text>
+
+          <rect x="152" y="272" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="272" y="296" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">mul   SiLU(w1) &#215; w3</text>
+          <text x="418" y="290" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">no weight &#8212; two operands with</text>
+          <text x="418" y="304" font-family="ui-monospace, monospace" font-size="10" fill="var(--local)">the same layout, elementwise</text>
+          <line x1="272" y1="310" x2="272" y2="346" stroke="currentColor" stroke-width="1.5" marker-end="url(#f2)"/>
+
+          <rect x="152" y="348" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="272" y="372" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">linear   w2</text>
+          <rect x="418" y="348" width="76" height="38" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="1.5"/>
+          <line x1="418" y1="357.5" x2="494" y2="357.5" stroke="var(--ccl)" stroke-width="1.2"/>
+          <line x1="418" y1="367" x2="494" y2="367" stroke="var(--ccl)" stroke-width="1.2"/>
+          <line x1="418" y1="376.5" x2="494" y2="376.5" stroke="var(--ccl)" stroke-width="1.2"/>
+          <text x="506" y="358" font-family="ui-monospace, monospace" font-size="10.5" font-weight="600" fill="var(--ink)">row-parallel</text>
+          <text x="506" y="372" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">F split &#183; now the contracted axis</text>
+          <text x="506" y="386" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)">&#8594; each chip holds a partial sum</text>
+          <line x1="272" y1="386" x2="272" y2="422" stroke="currentColor" stroke-width="1.5" marker-end="url(#f2)"/>
+          <text x="138" y="408" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ccl)" text-anchor="end">partial [S, H]</text>
+
+          <rect x="152" y="424" width="240" height="38" rx="3" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
+          <text x="272" y="448" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">reduce_scatter   dim=3</text>
+          <text x="418" y="442" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)">adds the partials, then keeps</text>
+          <text x="418" y="456" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)">only this chip&#8217;s slice</text>
+          <line x1="272" y1="462" x2="272" y2="498" stroke="currentColor" stroke-width="1.5" marker-end="url(#f2)"/>
+          <text x="138" y="484" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ink-2)" text-anchor="end">fractured [S, H/N]</text>
+
+          <rect x="152" y="500" width="240" height="38" rx="3" fill="var(--surface)" stroke="var(--resid)" stroke-width="1.5"/>
+          <text x="272" y="524" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">add   residual</text>
+          <text x="418" y="518" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">same layout on both sides,</text>
+          <text x="418" y="532" font-family="ui-monospace, monospace" font-size="10" fill="var(--resid)">so it is elementwise and free</text>
+
+          <text x="272" y="566" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink-2)" text-anchor="middle">out &#183; fractured [S, H/N]</text>
+        </svg>
+      </div>
+      <figcaption>The MLP sublayer. <b><code>F</code> is the output axis of <code>w1</code>/<code>w3</code> and the
+        contracted axis of <code>w2</code></b> &mdash; the same dimension, playing both roles. Cutting it once serves
+        both matmuls, which is exactly why nothing has to move between them.</figcaption>
+    </figure>
+
+    <h3>Why <code>mul</code> is free, and what that does <em>not</em> mean</h3>
+
+    <p>It is tempting to read "no communication" as "the operands must be replicated". The opposite is true.
+      <code>w1</code> and <code>w3</code> are cut along <code>F</code> in exactly the same places, so
+      <code>w1_out</code> and <code>w3_out</code> are fractured <em class="term">identically</em>. Element
+      <code>f</code> of one lives on the same chip as element <code>f</code> of the other, and the multiply is
+      therefore chip-local:</p>
+
+<pre><code><span class="c-cmt"># models/tt_transformers/tt/mlp.py:236 &#8212; SiLU is fused as an activation on operand A</span>
+w2_in = ttnn.mul(w1_out, w3_out, input_tensor_a_activations=[self.activation_type], ...)</code></pre>
+
+    <p>The general rule, and it covers the residual <code>add</code> too: <strong>an elementwise op costs nothing
+      whenever both operands share a layout.</strong> Replicating them would not help and would waste memory. This is
+      also why the residual stream is deliberately left fractured all the way through the layer &mdash; it makes both
+      adds free.</p>
+
+    <p>And it is why the pairing pays. <code>F</code> is 28672 against a model dim of 8192, so the tensor flowing
+      through <code>mul</code> is the widest thing in the block. Gathering it would move roughly 3.5&#215; what
+      gathering the block output costs. The conjugate pair keeps it fractured and puts the collective at the narrow
+      end.</p>
+  </section>
+
+  <section id="layer">
+    <div class="sec-head">
+      <span class="sec-tag">Both together</span>
+      <h2>The whole layer</h2>
+    </div>
+
+    <p>Stack the two sublayers and the weights drop away, because by now you know how each one is cut. What is left is
+      the shape of the thing: <strong>four collectives, and the state changes only at a collective or at a
+      column-parallel <code>linear</code>.</strong></p>
 
     <div class="note">
       <span class="note-tag">The residual stream lives fractured</span>
       <p><code>// x is fractured across devices</code> &mdash; <code>decoder.py:236</code><br>
         <code>// Norms take fractured inputs and output replicated across devices</code> &mdash; <code>:248</code><br>
         <code>// MLP takes replicated inputs and produces fractured outputs</code> &mdash; <code>:309</code></p>
-      <p>So: <strong>the norm is the gather.</strong> That is the one place the full hidden vector has to exist, because
-        RMSNorm needs a sum over the whole feature dimension. The sublayer then fractures it again on the way out. The
-        residual add is elementwise on fractured data and costs nothing.</p>
+      <p>Three comments in the source, and together they are the whole invariant. <strong>The norm is the gather</strong>
+        &mdash; it is the one operation that genuinely needs the full feature vector, because RMSNorm sums over it. The
+        sublayer then fractures the tensor again on its way out.</p>
     </div>
-
-    <h3>Reading the diagram</h3>
-
-    <p>Three states a tensor can be in, and four symbols. Every arrow is labelled with the state only where the state
-      <em class="term">changes</em> &mdash; so an op with no label after it did not move any data.</p>
-
-    <div class="t-scroll">
-      <table>
-        <thead>
-          <tr><th>Term</th><th>Meaning</th></tr>
-        </thead>
-        <tbody>
-          <tr><td class="num">fractured</td><td>each chip holds a <em class="term">different</em> slice; concatenating the slices gives the whole tensor</td></tr>
-          <tr><td class="num">gathered</td><td>every chip holds the <em class="term">same</em> complete tensor</td></tr>
-          <tr><td class="num">partial</td><td>every chip holds a full-size tensor that is only part of the sum &mdash; must be reduced before it means anything</td></tr>
-          <tr><td class="num">S</td><td>sequence length</td></tr>
-          <tr><td class="num">H</td><td>model dim &mdash; <code>args.dim</code>, 8192 for Llama-70B</td></tr>
-          <tr><td class="num">F</td><td>FFN inner dim &mdash; <code>args.hidden_dim</code>, 28672 for Llama-70B</td></tr>
-          <tr><td class="num">N</td><td>chips in the tensor-parallel group</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-
-    <p class="legend">
-      <span><i class="sw sw-loc"></i> compute &#8212; nothing crosses a wire</span>
-      <span><i class="sw sw-ccl"></i> collective &#8212; data crosses ethernet</span>
-      <span><i class="sw sw-res"></i> residual path</span>
-    </p>
 
     <figure class="fig-tall">
       <div class="fig-frame">
@@ -591,30 +836,20 @@ self.n_local_heads = self.n_heads // self.cluster_shape[<span class="c-cmt">1</s
         untouched and therefore touches no wire.</figcaption>
     </figure>
 
-    <p>Two things are worth pausing on.</p>
-
-    <p><strong><code>sdpa</code> costs nothing in communication.</strong> Because <code>linear W_qkv</code> split by
-      head, each chip owns whole heads &mdash; its own Q, K and V. Scores, softmax and the value-weighted sum all
-      happen on-chip, and the KV cache is partitioned by head as a side effect.</p>
-
-    <p><strong><code>mul</code> costs nothing either, and not because anything is replicated.</strong>
-      <code>w1</code> and <code>w3</code> are both column-parallel, so their outputs are fractured along <code>F</code>
-      <em class="term">identically</em>. Each chip multiplies its own slice by its own slice. The same reasoning covers
-      <code>add</code>: the residual and the sublayer output are fractured the same way, so the elementwise add is
-      chip-local. An elementwise op is free whenever both operands share a layout &mdash; replication is not required
-      and would in fact be wasteful.</p>
-
     <div class="note">
       <span class="note-tag">The gather and the norm can swap places</span>
-      <p>The diagram shows <code>all_gather</code> then <code>rms_norm</code>, which is the straightforward reading:
-        you need the whole feature vector before you can normalise over it. There is a second implementation that
-        inverts the order &mdash; each chip computes <em class="term">partial</em> statistics locally, then a gather
-        combines them (<code>distributed_norm.py:112</code>). Which one runs depends on
-        <code>is_distributed_norm(mode)</code>: a 2-D mesh always takes it, and so does any model with
-        <code>dim &gt; 4096</code> during prefill.</p>
-      <p>Either way it is one all-gather per norm, moving the same activation. For the purpose of finding your
-        collectives, treat them as the same node.</p>
+      <p>Both diagrams show <code>all_gather</code> then <code>rms_norm</code>, which is the straightforward reading:
+        you need the whole feature vector before you can normalise over it. A second implementation inverts it &mdash;
+        each chip computes <em class="term">partial</em> statistics locally, then one gather combines them
+        (<code>distributed_norm.py:112</code>). Which runs depends on <code>is_distributed_norm(mode)</code>: a 2-D
+        mesh always takes it, as does any model with <code>dim &gt; 4096</code> during prefill.</p>
+      <p>Either way it is one all-gather per norm moving the same activation, so for the purpose of finding your
+        collectives, treat them as one node.</p>
     </div>
+
+    <p><strong>Those two norm gathers are the largest collectives in the layer.</strong> Each moves a full
+      <code>[S, H]</code> activation, while the two reduce-scatters shrink their output as they go. If you are hunting
+      for the expensive collective in a profile, start at the norm, not the matmul.</p>
   </section>
 
   <section id="galaxy">
