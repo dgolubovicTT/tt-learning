@@ -1,0 +1,713 @@
+<title>Reading a CCL Call</title>
+<style>
+  :root {
+    --ground: #f6f7f8;
+    --surface: #ffffff;
+    --surface-2: #eef0f2;
+    --ink: #14181d;
+    --ink-2: #3d474f;
+    --muted: #6b7680;
+    --rule: #d9dde1;
+    --rule-soft: #e8ebee;
+
+    --wire: #cc5f22;
+    --node: #00918a;
+    --node-wash: rgba(0, 145, 138, 0.09);
+    --warn: #b23b28;
+
+    --font-mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --font-serif: Charter, "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+
+    --measure: 66ch;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0f1418;
+      --surface: #161c21;
+      --surface-2: #1d242a;
+      --ink: #e6eaed;
+      --ink-2: #b6c0c8;
+      --muted: #8a949d;
+      --rule: #2b343b;
+      --rule-soft: #222a30;
+
+      --wire: #dd7233;
+      --node: #12a396;
+      --node-wash: rgba(18, 163, 150, 0.13);
+      --warn: #e07a68;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0f1418;
+    --surface: #161c21;
+    --surface-2: #1d242a;
+    --ink: #e6eaed;
+    --ink-2: #b6c0c8;
+    --muted: #8a949d;
+    --rule: #2b343b;
+    --rule-soft: #222a30;
+
+    --wire: #dd7233;
+    --node: #12a396;
+    --node-wash: rgba(18, 163, 150, 0.13);
+    --warn: #e07a68;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-serif);
+    font-size: 17px;
+    line-height: 1.65;
+    margin: 0;
+    padding: 0 20px 90px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 860px; margin: 0 auto; }
+
+  .crumb {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted); padding-top: 44px; margin: 0 0 26px;
+  }
+  .crumb a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--rule); }
+  .crumb a:hover { color: var(--ink); }
+
+  header { padding-bottom: 34px; border-bottom: 1px solid var(--rule); margin-bottom: 8px; }
+
+  h1 {
+    font-family: var(--font-mono); font-size: clamp(32px, 6vw, 50px); font-weight: 600;
+    letter-spacing: -.03em; line-height: 1.02; margin: 0 0 20px; text-wrap: balance;
+  }
+
+  .lede {
+    font-size: 18.5px; line-height: 1.55; color: var(--ink-2);
+    margin: 0; max-width: 60ch; text-wrap: pretty;
+  }
+  .lede em { color: var(--ink); font-style: italic; }
+
+  section { padding-top: 54px; }
+
+  .sec-head {
+    display: flex; flex-direction: column; gap: 9px;
+    padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px solid var(--rule);
+  }
+
+  .sec-tag {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+    letter-spacing: .13em; text-transform: uppercase; color: var(--muted);
+  }
+
+  h2 {
+    font-family: var(--font-mono); font-weight: 600;
+    font-size: clamp(21px, 3.2vw, 27px); line-height: 1.16;
+    letter-spacing: -.022em; margin: 0; text-wrap: balance;
+  }
+  h2 code { font-size: .92em; background: none; padding: 0; color: var(--wire); }
+
+  h3 {
+    font-family: var(--font-mono); font-weight: 600; font-size: 15.5px;
+    letter-spacing: -.01em; margin: 38px 0 12px;
+  }
+
+  p, ul, ol { max-width: var(--measure); }
+  p { margin: 0 0 18px; text-wrap: pretty; }
+  ul, ol { margin: 0 0 18px; padding-left: 22px; }
+  li { margin-bottom: 9px; }
+  li::marker { color: var(--muted); }
+
+  strong { font-weight: 600; color: var(--ink); }
+  em.term { font-style: italic; color: var(--ink); }
+
+  code {
+    font-family: var(--font-mono); font-size: .87em;
+    background: var(--surface-2); padding: .12em .36em; border-radius: 3px;
+  }
+
+  a { color: var(--wire); text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--wire); outline-offset: 3px; border-radius: 2px; }
+
+  /* three-register grid */
+  .registers {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 12px; margin: 30px 0 8px; max-width: none;
+  }
+  .reg {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+    padding: 20px 20px 22px; display: flex; flex-direction: column; gap: 9px;
+  }
+  .reg-name {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--node);
+  }
+  .reg-q { font-family: var(--font-mono); font-weight: 600; font-size: 15px; line-height: 1.3; letter-spacing: -.01em; }
+  .reg-args { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.8; color: var(--ink-2); }
+  .reg-args span { color: var(--wire); }
+
+  /* figures */
+  figure { margin: 32px 0; padding: 0; }
+  .fig-frame {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+    padding: 22px 18px; overflow-x: auto;
+  }
+  figure svg { display: block; width: 100%; min-width: 450px; max-width: 100%; height: auto; color: var(--ink-2); }
+  figcaption { font-size: 14.5px; line-height: 1.5; color: var(--ink-2); margin-top: 11px; max-width: var(--measure); }
+  figcaption b { color: var(--ink); font-weight: 600; }
+
+  /* code blocks */
+  pre {
+    font-family: var(--font-mono); font-size: 13px; line-height: 1.7;
+    background: var(--surface); border: 1px solid var(--rule);
+    border-left: 3px solid var(--wire); border-radius: 3px;
+    padding: 17px 19px; overflow-x: auto; margin: 22px 0;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  .c-cmt { color: var(--muted); }
+  .c-key { color: var(--wire); }
+  .c-num { color: var(--node); }
+
+  /* tables */
+  .t-scroll { overflow-x: auto; margin: 24px 0; border: 1px solid var(--rule); border-radius: 4px; }
+  table {
+    width: 100%; border-collapse: collapse; background: var(--surface);
+    font-size: 14.5px; font-variant-numeric: tabular-nums;
+  }
+  th {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase; text-align: left;
+    color: var(--muted); padding: 12px 15px; border-bottom: 1px solid var(--rule); white-space: nowrap;
+  }
+  td { padding: 11px 15px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  td code { font-size: 12.5px; white-space: nowrap; }
+  .num { font-family: var(--font-mono); font-size: 13px; }
+
+  /* callouts */
+  .note {
+    background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--node);
+    border-radius: 3px; padding: 17px 19px; margin: 24px 0; max-width: 72ch;
+  }
+  .note.flag { border-left-color: var(--warn); }
+  .note-tag {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: .13em; text-transform: uppercase; color: var(--node);
+    display: block; margin-bottom: 8px;
+  }
+  .note.flag .note-tag { color: var(--warn); }
+  .note p { margin: 0 0 11px; font-size: 15.5px; max-width: none; }
+  .note p:last-child { margin-bottom: 0; }
+
+  .src {
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--muted);
+    line-height: 1.8; margin: 16px 0 0; max-width: none;
+  }
+  .src b { color: var(--ink-2); font-weight: 600; }
+
+  footer {
+    border-top: 1px solid var(--rule); padding-top: 24px; margin-top: 56px;
+    font-family: var(--font-mono); font-size: 11.5px; line-height: 1.9; color: var(--muted);
+  }
+  footer a { color: var(--ink-2); }
+
+  @media (max-width: 640px) {
+    body { font-size: 16px; }
+  }
+</style>
+
+<div class="wrap">
+
+  <p class="crumb"><a href="../">tt-learning</a> &nbsp;/&nbsp; <a href="./">multichip</a> &nbsp;/&nbsp; reading a ccl call</p>
+
+  <header>
+    <h1>Reading a CCL Call</h1>
+    <p class="lede">Every argument on <code>ttnn.all_gather</code> answers a different question, and they live in three
+      separate coordinate systems. Once you know which register an argument belongs to, the call reads itself.</p>
+  </header>
+
+  <section id="registers">
+    <div class="sec-head">
+      <span class="sec-tag">The frame</span>
+      <h2>Three registers, not one list of options</h2>
+    </div>
+
+    <p>The reason a CCL call looks confusing is that its arguments are drawn from three different spaces that all happen
+      to use the word "dimension" or "axis." Sort them once and they stop colliding.</p>
+
+    <div class="registers">
+      <div class="reg">
+        <span class="reg-name">Tensor space</span>
+        <span class="reg-q">Which numbers move?</span>
+        <span class="reg-args"><span>mesh_mapper</span>'s dim<br><span>dim=</span></span>
+      </div>
+      <div class="reg">
+        <span class="reg-name">Mesh space</span>
+        <span class="reg-q">Which chips talk to each other?</span>
+        <span class="reg-args"><span>cluster_axis=</span></span>
+      </div>
+      <div class="reg">
+        <span class="reg-name">Wire space</span>
+        <span class="reg-q">How do the bytes get there?</span>
+        <span class="reg-args"><span>topology=</span><br><span>num_links=</span></span>
+      </div>
+    </div>
+
+    <p class="src"><b>The single most common mix-up:</b> <code>dim</code> indexes the tensor (0&#8230;3 for a 4-D tensor).
+      <code>cluster_axis</code> indexes the mesh (0 or 1 for a 2-D mesh). In
+      <code>all_gather(t, dim=3, cluster_axis=1)</code> the two numbers have nothing to do with each other.</p>
+
+    <div class="note">
+      <span class="note-tag">Sharding is not in any of these</span>
+      <p>How the tensor was split across chips is fixed earlier, by the <code>mesh_mapper</code> you passed to
+        <code>ttnn.from_torch</code>. No CCL argument changes it. <code>topology</code> and <code>num_links</code>
+        never touch data placement at all &mdash; they only describe the wires the op is allowed to run over.</p>
+    </div>
+  </section>
+
+  <section id="board">
+    <div class="sec-head">
+      <span class="sec-tag">Worked example</span>
+      <h2>One tensor, eight chips</h2>
+    </div>
+
+    <p>Everything below uses the same setup: a <code>[1, 1, 32, 256]</code> tensor on a 2&#215;4 mesh, width-sharded.</p>
+
+<pre><code>mesh_device = ttnn.open_mesh_device(ttnn.MeshShape(<span class="c-num">2</span>, <span class="c-num">4</span>))
+t = ttnn.from_torch(
+    torch.rand((<span class="c-num">1</span>, <span class="c-num">1</span>, <span class="c-num">32</span>, <span class="c-num">256</span>)),
+    layout=ttnn.TILE_LAYOUT, device=mesh_device,
+    <span class="c-key">mesh_mapper</span>=ttnn.ShardTensorToMesh(mesh_device, dim=<span class="c-num">3</span>),   <span class="c-cmt"># 256 / 8 = 32 per chip</span>
+)</code></pre>
+
+    <p>The mapper walks the mesh in row-major order and hands each chip a <code>[1, 1, 32, 32]</code> slice:</p>
+
+    <figure>
+      <div class="fig-frame">
+        <svg viewBox="0 0 640 236" role="img" aria-label="A 2 by 4 mesh of devices. Mesh axis 1 runs left to right across four columns; mesh axis 0 runs top to bottom across two rows. Each device holds a 32-column slice of the 256-wide tensor, assigned in row-major order from slice 0 to 32 at coordinate 0,0 through slice 224 to 256 at coordinate 1,3.">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <line x1="86" y1="30" x2="612" y2="30" stroke="currentColor" stroke-width="1" marker-end="url(#ah)"/>
+          <text x="86" y="19" font-family="ui-monospace, monospace" font-size="11.5" fill="currentColor">cluster_axis = 1  (columns, East&#8211;West)</text>
+
+          <line x1="66" y1="52" x2="66" y2="200" stroke="currentColor" stroke-width="1" marker-end="url(#ah)"/>
+          <text x="58" y="130" font-family="ui-monospace, monospace" font-size="11.5" fill="currentColor"
+                text-anchor="middle" transform="rotate(-90 58 130)">cluster_axis = 0  (rows, N&#8211;S)</text>
+
+          <g>
+            <rect x="86"  y="48" width="122" height="66" fill="var(--node-wash)" stroke="var(--node)" stroke-width="1.5"/>
+            <text x="98" y="70" font-family="ui-monospace, monospace" font-size="11" fill="var(--node)">(0,0)</text>
+            <text x="98" y="97" font-family="ui-monospace, monospace" font-size="14" font-weight="600" fill="var(--ink)">[0:32]</text>
+
+            <rect x="222" y="48" width="122" height="66" fill="var(--node-wash)" stroke="var(--node)" stroke-width="1.5"/>
+            <text x="234" y="70" font-family="ui-monospace, monospace" font-size="11" fill="var(--node)">(0,1)</text>
+            <text x="234" y="97" font-family="ui-monospace, monospace" font-size="14" font-weight="600" fill="var(--ink)">[32:64]</text>
+
+            <rect x="358" y="48" width="122" height="66" fill="var(--node-wash)" stroke="var(--node)" stroke-width="1.5"/>
+            <text x="370" y="70" font-family="ui-monospace, monospace" font-size="11" fill="var(--node)">(0,2)</text>
+            <text x="370" y="97" font-family="ui-monospace, monospace" font-size="14" font-weight="600" fill="var(--ink)">[64:96]</text>
+
+            <rect x="494" y="48" width="122" height="66" fill="var(--node-wash)" stroke="var(--node)" stroke-width="1.5"/>
+            <text x="506" y="70" font-family="ui-monospace, monospace" font-size="11" fill="var(--node)">(0,3)</text>
+            <text x="506" y="97" font-family="ui-monospace, monospace" font-size="14" font-weight="600" fill="var(--ink)">[96:128]</text>
+          </g>
+
+          <g>
+            <rect x="86"  y="130" width="122" height="66" fill="var(--node-wash)" stroke="var(--node)" stroke-width="1.5"/>
+            <text x="98" y="152" font-family="ui-monospace, monospace" font-size="11" fill="var(--node)">(1,0)</text>
+            <text x="98" y="179" font-family="ui-monospace, monospace" font-size="14" font-weight="600" fill="var(--ink)">[128:160]</text>
+
+            <rect x="222" y="130" width="122" height="66" fill="var(--node-wash)" stroke="var(--node)" stroke-width="1.5"/>
+            <text x="234" y="152" font-family="ui-monospace, monospace" font-size="11" fill="var(--node)">(1,1)</text>
+            <text x="234" y="179" font-family="ui-monospace, monospace" font-size="14" font-weight="600" fill="var(--ink)">[160:192]</text>
+
+            <rect x="358" y="130" width="122" height="66" fill="var(--node-wash)" stroke="var(--node)" stroke-width="1.5"/>
+            <text x="370" y="152" font-family="ui-monospace, monospace" font-size="11" fill="var(--node)">(1,2)</text>
+            <text x="370" y="179" font-family="ui-monospace, monospace" font-size="14" font-weight="600" fill="var(--ink)">[192:224]</text>
+
+            <rect x="494" y="130" width="122" height="66" fill="var(--node-wash)" stroke="var(--node)" stroke-width="1.5"/>
+            <text x="506" y="152" font-family="ui-monospace, monospace" font-size="11" fill="var(--node)">(1,3)</text>
+            <text x="506" y="179" font-family="ui-monospace, monospace" font-size="14" font-weight="600" fill="var(--ink)">[224:256]</text>
+          </g>
+
+          <text x="86" y="222" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">each chip holds [1, 1, 32, 32]</text>
+        </svg>
+      </div>
+      <figcaption>The board. Slices are assigned in row-major order over the mesh coordinates.
+        <b>Mesh axis 0 is vertical (North&#8211;South, extent 2); mesh axis 1 is horizontal (East&#8211;West, extent 4).</b></figcaption>
+    </figure>
+  </section>
+
+  <section id="cluster-axis">
+    <div class="sec-head">
+      <span class="sec-tag">Mesh space</span>
+      <h2><code>cluster_axis</code> &mdash; who is in the conversation</h2>
+    </div>
+
+    <p>A CCL op is a conversation among a set of chips. <code>cluster_axis</code> names the mesh dimension you
+      travel along, which in turn decides how many <em class="term">independent</em> conversations run at once.</p>
+
+    <figure>
+      <div class="fig-frame">
+        <svg viewBox="0 0 680 250" role="img" aria-label="Comparison of two cluster_axis choices on the same 2 by 4 mesh. With cluster_axis equal to 0, four independent groups form, each a vertical column of two devices. With cluster_axis equal to 1, two independent groups form, each a horizontal row of four devices.">
+          <text x="34" y="28" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--wire)">cluster_axis = 0</text>
+          <text x="34" y="46" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">4 groups &#215; 2 devices</text>
+
+          <g stroke="var(--rule)" stroke-width="1" fill="var(--surface-2)">
+            <rect x="34"  y="70" width="52" height="34"/><rect x="94"  y="70" width="52" height="34"/>
+            <rect x="154" y="70" width="52" height="34"/><rect x="214" y="70" width="52" height="34"/>
+            <rect x="34"  y="126" width="52" height="34"/><rect x="94"  y="126" width="52" height="34"/>
+            <rect x="154" y="126" width="52" height="34"/><rect x="214" y="126" width="52" height="34"/>
+          </g>
+
+          <g stroke="var(--wire)" stroke-width="2" fill="none">
+            <line x1="60"  y1="104" x2="60"  y2="126"/>
+            <line x1="120" y1="104" x2="120" y2="126"/>
+            <line x1="180" y1="104" x2="180" y2="126"/>
+            <line x1="240" y1="104" x2="240" y2="126"/>
+          </g>
+          <g stroke="var(--wire)" stroke-width="1.25" fill="none" stroke-dasharray="3 3">
+            <rect x="28"  y="64" width="64" height="102"/>
+            <rect x="88"  y="64" width="64" height="102"/>
+            <rect x="148" y="64" width="64" height="102"/>
+            <rect x="208" y="64" width="64" height="102"/>
+          </g>
+
+          <text x="34" y="192" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">axis extent = 2</text>
+          <text x="34" y="210" font-family="ui-monospace, monospace" font-size="11" fill="var(--warn)">always resolves to Linear</text>
+
+          <line x1="340" y1="18" x2="340" y2="230" stroke="var(--rule)" stroke-width="1"/>
+
+          <text x="378" y="28" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--wire)">cluster_axis = 1</text>
+          <text x="378" y="46" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">2 groups &#215; 4 devices</text>
+
+          <g stroke="var(--rule)" stroke-width="1" fill="var(--surface-2)">
+            <rect x="378" y="70" width="52" height="34"/><rect x="438" y="70" width="52" height="34"/>
+            <rect x="498" y="70" width="52" height="34"/><rect x="558" y="70" width="52" height="34"/>
+            <rect x="378" y="126" width="52" height="34"/><rect x="438" y="126" width="52" height="34"/>
+            <rect x="498" y="126" width="52" height="34"/><rect x="558" y="126" width="52" height="34"/>
+          </g>
+
+          <g stroke="var(--wire)" stroke-width="2" fill="none">
+            <line x1="430" y1="87" x2="438" y2="87"/><line x1="490" y1="87" x2="498" y2="87"/><line x1="550" y1="87" x2="558" y2="87"/>
+            <line x1="430" y1="143" x2="438" y2="143"/><line x1="490" y1="143" x2="498" y2="143"/><line x1="550" y1="143" x2="558" y2="143"/>
+          </g>
+          <g stroke="var(--wire)" stroke-width="1.25" fill="none" stroke-dasharray="3 3">
+            <rect x="372" y="64" width="244" height="46"/>
+            <rect x="372" y="120" width="244" height="46"/>
+          </g>
+
+          <text x="378" y="192" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">axis extent = 4</text>
+          <text x="378" y="210" font-family="ui-monospace, monospace" font-size="11" fill="var(--node)">Ring available</text>
+        </svg>
+      </div>
+      <figcaption>The same eight chips, two different groupings. <b>Coloured links are the ones the op actually runs
+        over; dashed outlines mark one independent collective each.</b> The groups do not exchange data &mdash; after a
+        <code>cluster_axis=1</code> all-gather, the two rows hold different results.</figcaption>
+    </figure>
+
+    <h3>What each choice yields for our tensor</h3>
+
+    <div class="t-scroll">
+      <table>
+        <thead>
+          <tr><th>cluster_axis</th><th>Group</th><th>Devices per group</th><th>all_gather(dim=3) output per chip</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>0</code></td><td>a column</td><td class="num">2</td><td><code>[1,1,32,64]</code> &mdash; 4 distinct results, one per column</td></tr>
+          <tr><td><code>1</code></td><td>a row</td><td class="num">4</td><td><code>[1,1,32,128]</code> &mdash; 2 distinct results, one per row</td></tr>
+          <tr><td><code>None</code></td><td>the whole mesh</td><td class="num">8</td><td><code>[1,1,32,256]</code> &mdash; identical on every chip</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note flag">
+      <span class="note-tag">Two things to know about None</span>
+      <p>On a 2-D mesh with a 1-D fabric, <code>all_gather</code> <em class="term">refuses</em> to run without an explicit
+        <code>cluster_axis</code>: <code>"1D fabric on a 2D mesh_device requires cluster_axis to be set"</code>.</p>
+      <p>And for <code>reduce_scatter</code> / <code>all_reduce</code>, passing <code>None</code> on a non-1&#215;N mesh
+        is not one flat 8-device collective &mdash; it silently decomposes into a pass on <code>cluster_axis=1</code>
+        followed by a pass on <code>cluster_axis=0</code>.</p>
+    </div>
+
+    <p class="src"><b>Source:</b> axis orientation, <code>models/common/modules/tt_ccl.py:193</code> &nbsp;&middot;&nbsp;
+      fabric assertion, <code>ttnn/cpp/ttnn/operations/ccl/all_gather/device/all_gather_device_operation.cpp:39</code> &nbsp;&middot;&nbsp;
+      two-pass decomposition, <code>ttnn/cpp/ttnn/operations/ccl/all_reduce/all_reduce.cpp:23</code></p>
+  </section>
+
+  <section id="topology">
+    <div class="sec-head">
+      <span class="sec-tag">Wire space</span>
+      <h2><code>topology</code> &mdash; whether the chain closes</h2>
+    </div>
+
+    <p>Once <code>cluster_axis</code> has picked a line of chips, <code>topology</code> says whether that line has a
+      wraparound link joining its two ends. That one edge is the entire difference.</p>
+
+    <figure>
+      <div class="fig-frame">
+        <svg viewBox="0 0 640 270" role="img" aria-label="Linear versus Ring topology on a group of four devices. Linear is an open chain of three links where the worst-case distance from device 0 to device 3 is three hops and the middle link carries the most traffic. Ring adds a fourth wraparound link from device 3 back to device 0, cutting the worst-case distance to two hops and loading all four links evenly.">
+          <text x="34" y="30" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="currentColor">Topology.Linear</text>
+
+          <g stroke="var(--rule)" stroke-width="1.5" fill="var(--surface-2)">
+            <rect x="34"  y="48" width="66" height="42"/>
+            <rect x="180" y="48" width="66" height="42"/>
+            <rect x="326" y="48" width="66" height="42"/>
+            <rect x="472" y="48" width="66" height="42"/>
+          </g>
+          <g font-family="ui-monospace, monospace" font-size="13" font-weight="600" fill="var(--ink)" text-anchor="middle">
+            <text x="67"  y="75">d0</text><text x="213" y="75">d1</text>
+            <text x="359" y="75">d2</text><text x="505" y="75">d3</text>
+          </g>
+          <g stroke="var(--wire)" stroke-width="2">
+            <line x1="100" y1="69" x2="180" y2="69"/>
+            <line x1="246" y1="69" x2="326" y2="69"/>
+            <line x1="392" y1="69" x2="472" y2="69"/>
+          </g>
+          <text x="286" y="60" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--warn)" text-anchor="middle">hotspot</text>
+          <text x="560" y="75" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">3 links</text>
+          <text x="34" y="110" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">worst-case distance d0&#8594;d3 = 3 hops &middot; end links half idle</text>
+
+          <text x="34" y="160" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--wire)">Topology.Ring</text>
+
+          <g stroke="var(--rule)" stroke-width="1.5" fill="var(--surface-2)">
+            <rect x="34"  y="178" width="66" height="42"/>
+            <rect x="180" y="178" width="66" height="42"/>
+            <rect x="326" y="178" width="66" height="42"/>
+            <rect x="472" y="178" width="66" height="42"/>
+          </g>
+          <g font-family="ui-monospace, monospace" font-size="13" font-weight="600" fill="var(--ink)" text-anchor="middle">
+            <text x="67"  y="205">d0</text><text x="213" y="205">d1</text>
+            <text x="359" y="205">d2</text><text x="505" y="205">d3</text>
+          </g>
+          <g stroke="var(--wire)" stroke-width="2">
+            <line x1="100" y1="199" x2="180" y2="199"/>
+            <line x1="246" y1="199" x2="326" y2="199"/>
+            <line x1="392" y1="199" x2="472" y2="199"/>
+          </g>
+          <path d="M 67 178 L 67 156 L 505 156 L 505 178" stroke="var(--wire)" stroke-width="2.5" fill="none"/>
+          <text x="286" y="150" font-family="ui-monospace, monospace" font-size="10.5" font-weight="600" fill="var(--wire)" text-anchor="middle">the one extra edge</text>
+          <text x="560" y="205" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">4 links</text>
+          <text x="34" y="240" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">worst-case distance d0&#8594;d3 = 2 hops &middot; every link evenly loaded</text>
+        </svg>
+      </div>
+      <figcaption>What Ring buys you: one more link, worst-case distance <code>D/2</code> instead of <code>D-1</code>,
+        and even load across the group. <b>On a line, the centre link carries the traffic of both halves while the two
+        end chips sit half idle.</b></figcaption>
+    </figure>
+
+    <div class="note flag">
+      <span class="note-tag">Ring is a request, not a guarantee</span>
+      <p>Passing <code>topology=ttnn.Topology.Ring</code> does not fail when the wraparound doesn't exist &mdash; the op
+        resolves it against the hardware and <em class="term">silently downgrades to Linear</em>. Two rules decide it:
+        an axis of extent&nbsp;2 never wraps, and without a <code>cluster_axis</code> the device set must span the
+        whole mesh.</p>
+      <p>On our 2&#215;4 mesh that means only <code>cluster_axis=1</code> can actually be a ring.
+        <code>cluster_axis=0</code> has extent 2, and <code>cluster_axis=None</code> is disqualified because mesh
+        dimension 0 is 2. You can check what you'll really get before running anything:</p>
+    </div>
+
+<pre><code>ttnn.get_usable_topology(t, cluster_axis=<span class="c-num">1</span>)   <span class="c-cmt"># -&gt; Topology.Ring</span>
+ttnn.get_usable_topology(t, cluster_axis=<span class="c-num">0</span>)   <span class="c-cmt"># -&gt; Topology.Linear  (extent 2)</span></code></pre>
+
+    <p>So don't hardcode it. In model code, ask the config:</p>
+
+<pre><code><span class="c-cmt"># models/tt_transformers/tt/model_config.py:2521</span>
+topology = model_args.ccl_topology()   <span class="c-cmt"># Ring on T3K/Galaxy at &gt;=8 devices, else Linear</span></code></pre>
+
+    <p class="src"><b>Source:</b> downgrade logic, <code>ttnn/cpp/ttnn/operations/ccl/ccl_common.cpp:148</code>
+      (<code>get_usable_topology</code>) and <code>:85</code> (<code>get_boundary_mode</code>)</p>
+  </section>
+
+  <section id="num-links">
+    <div class="sec-head">
+      <span class="sec-tag">Wire space</span>
+      <h2><code>num_links</code> &mdash; how many cables in parallel</h2>
+    </div>
+
+    <p>Adjacent chips are joined by more than one ethernet link on most boards. <code>num_links</code> is how many of
+      them the op may use at once. It is a bandwidth dial, never a correctness one &mdash; the <em class="term">same</em>
+      payload is divided across the links, not duplicated and not increased.</p>
+
+    <figure>
+      <div class="fig-frame">
+        <svg viewBox="0 0 620 190" role="img" aria-label="With num_links equal to 1, the whole payload crosses a single cable between two adjacent chips. With num_links equal to 4, the same payload is cut into four parts that cross four cables concurrently, so the transfer finishes in about a quarter of the time.">
+          <text x="30" y="26" font-family="ui-monospace, monospace" font-size="12" font-weight="600" fill="currentColor">num_links=1</text>
+          <g stroke="var(--rule)" stroke-width="1.5" fill="var(--surface-2)">
+            <rect x="30" y="40" width="58" height="40"/><rect x="252" y="40" width="58" height="40"/>
+          </g>
+          <line x1="88" y1="60" x2="252" y2="60" stroke="var(--wire)" stroke-width="2.5"/>
+          <text x="170" y="52" font-family="ui-monospace, monospace" font-size="11" fill="var(--wire)" text-anchor="middle">S bytes</text>
+          <text x="30" y="104" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">transfer time &#8776; S / B</text>
+
+          <line x1="352" y1="16" x2="352" y2="170" stroke="var(--rule)" stroke-width="1"/>
+
+          <text x="382" y="26" font-family="ui-monospace, monospace" font-size="12" font-weight="600" fill="var(--wire)">num_links=4</text>
+          <g stroke="var(--rule)" stroke-width="1.5" fill="var(--surface-2)">
+            <rect x="382" y="40" width="58" height="76"/><rect x="532" y="40" width="58" height="76"/>
+          </g>
+          <g stroke="var(--wire)" stroke-width="2.5">
+            <line x1="440" y1="52" x2="532" y2="52"/>
+            <line x1="440" y1="70" x2="532" y2="70"/>
+            <line x1="440" y1="88" x2="532" y2="88"/>
+            <line x1="440" y1="106" x2="532" y2="106"/>
+          </g>
+          <text x="486" y="140" font-family="ui-monospace, monospace" font-size="11" fill="var(--wire)" text-anchor="middle">S/4 bytes each</text>
+          <text x="382" y="162" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">transfer time &#8776; S / 4B</text>
+        </svg>
+      </div>
+      <figcaption>The payload is split, not replicated: internally the op computes
+        <code>per_link_bytes = total_output_bytes / num_links</code>. <b>Raising <code>num_links</code> beyond what the
+        board physically provides buys nothing.</b></figcaption>
+    </figure>
+
+    <h3>Links available per platform</h3>
+
+    <div class="t-scroll">
+      <table>
+        <thead>
+          <tr><th>Platform</th><th>axis 0 (N&#8211;S)</th><th>axis 1 (E&#8211;W)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>N150, P100, P150 <span style="color:var(--muted)">(single chip)</span></td><td class="num">0</td><td class="num">0</td></tr>
+          <tr><td>N300, T3K, N150x4</td><td class="num">1</td><td class="num">1</td></tr>
+          <tr><td>P300, P150x4, P150x8, BHGLX</td><td class="num">2</td><td class="num">2</td></tr>
+          <tr><td>TG <span style="color:var(--muted)">(Wormhole Galaxy, 32 chips)</span></td><td class="num">4</td><td class="num">4</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Which is why model code queries rather than hardcodes. With <code>cluster_axis=None</code> the helper returns the
+      minimum across both axes, so a call spanning both stays safe:</p>
+
+<pre><code><span class="c-cmt"># models/common/modules/tt_ccl.py:186</span>
+num_links = get_num_links(mesh_device, cluster_axis=<span class="c-num">1</span>)</code></pre>
+
+    <p class="src"><b>Source:</b> link table, <code>models/common/modules/tt_ccl.py:201</code> &nbsp;&middot;&nbsp;
+      payload split, <code>ttnn/cpp/ttnn/operations/ccl/all_gather/device/all_gather_unicast_factory.cpp:170</code></p>
+  </section>
+
+  <section id="ops">
+    <div class="sec-head">
+      <span class="sec-tag">Putting it together</span>
+      <h2>The three ops, in terms of chip state</h2>
+    </div>
+
+    <p>Think of each chip's tensor as being in one of three states, and the ops as transitions between them.
+      <em class="term">Fractured</em> means each chip holds a distinct slice. <em class="term">Partial</em> means each
+      chip holds a full-size tensor that is only part of the sum. <em class="term">Gathered</em> means every chip in the
+      group holds the same complete result.</p>
+
+    <div class="t-scroll">
+      <table>
+        <thead>
+          <tr><th>Op</th><th>In</th><th>Out</th><th>On our board, cluster_axis=1</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>all_gather</code></td><td>fractured</td><td>gathered</td>
+            <td><code>[1,1,32,32]</code> &#8594; <code>[1,1,32,128]</code>, 4&#215; the memory</td>
+          </tr>
+          <tr>
+            <td><code>reduce_scatter</code></td><td>partial</td><td>fractured, reduced</td>
+            <td><code>[1,1,32,32]</code> &#8594; <code>[1,1,32,8]</code>, summed over the row</td>
+          </tr>
+          <tr>
+            <td><code>all_reduce</code></td><td>partial</td><td>gathered, reduced</td>
+            <td><code>[1,1,32,32]</code> &#8594; <code>[1,1,32,32]</code>, summed over the row</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p><code>all_reduce</code> is currently a composite of <code>reduce_scatter</code> then <code>all_gather</code>
+      &mdash; which is why the two-pass <code>cluster_axis=None</code> behaviour applies to it too.</p>
+
+    <h3>Where each one shows up in a transformer</h3>
+
+    <ul>
+      <li><strong>Column-parallel matmul</strong> (weights split by width): output is fractured, so an
+        <code>all_gather</code> on <code>dim=3</code> puts the full activation back on every chip.</li>
+      <li><strong>Row-parallel matmul</strong> (weights split by height): output is partial, so a
+        <code>reduce_scatter</code> &mdash; or a full <code>all_reduce</code> if the next op needs it gathered.</li>
+      <li><strong>2-D weight sharding</strong> on a 2-D mesh: reduce along <code>cluster_axis=1</code> first, then
+        gather the shards along <code>cluster_axis=0</code>. Two calls, two different axes &mdash; the clearest case for
+        keeping mesh space and tensor space apart in your head.</li>
+    </ul>
+  </section>
+
+  <section id="deltas">
+    <div class="sec-head">
+      <span class="sec-tag">Errata</span>
+      <h2>Where the tech report has drifted</h2>
+    </div>
+
+    <p><code>tech_reports/LLMs/llms.md</code> &sect;3.3 is still the right place to start, but three details no longer
+      match the code. Worth knowing before you take a number from it.</p>
+
+    <div class="t-scroll">
+      <table>
+        <thead>
+          <tr><th>llms.md says</th><th>Current state</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>:1232</b> &mdash; TG has 4 links on axis 0, 3 on axis 1</td>
+            <td>The link table gives TG <code>(4, 4)</code>. Query <code>get_num_links</code> instead of quoting either.</td>
+          </tr>
+          <tr>
+            <td><b>:1245</b> &mdash; a Ring all-gather over all 8 chips of a 2&#215;4 mesh, no <code>cluster_axis</code></td>
+            <td>Mesh dimension 0 is 2, so the wraparound is rejected and this resolves to Linear. A 1-D fabric would
+              reject the missing <code>cluster_axis</code> outright.</td>
+          </tr>
+          <tr>
+            <td><b>:1348</b> &mdash; data-movement table, "Ring results in less overall data movement"</td>
+            <td>The printed formulas say the opposite. At <code>D=8</code> the Line row gives <code>7S</code> and the
+              Ring row gives <code>24S</code>; the <code>log&#8322;</code> term looks borrowed from recursive doubling.
+              Trust the direction (Ring wins), not the arithmetic.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="checklist">
+    <div class="sec-head">
+      <span class="sec-tag">In practice</span>
+      <h2>Reading any CCL call in four questions</h2>
+    </div>
+
+    <ol>
+      <li><strong>What shape is on each chip right now?</strong> That comes from the <code>mesh_mapper</code>, not from
+        anything in this call.</li>
+      <li><strong><code>cluster_axis</code> &mdash; which chips talk?</strong> Axis 0 is columns of the mesh, axis 1 is
+        rows. The group size is the mesh extent along that axis; everything outside the group keeps its own separate
+        result.</li>
+      <li><strong><code>dim</code> &mdash; which tensor dimension grows or shrinks?</strong> Unrelated to the mesh. For
+        width-sharded activations this is nearly always <code>3</code>.</li>
+      <li><strong><code>topology</code> and <code>num_links</code> &mdash; how fast?</strong> Neither changes the answer,
+        only the time to get it. Resolve both from helpers so a submesh or a different board doesn't quietly cost you
+        performance.</li>
+    </ol>
+
+    <div class="note">
+      <span class="note-tag">The habit worth forming</span>
+      <p>Write <code>model_args.ccl_topology()</code> and <code>get_num_links(mesh_device, cluster_axis)</code> rather
+        than literals. Both already encode the per-board rules, and both keep working when the same model runs on an
+        N300, a T3K row, and a Galaxy submesh.</p>
+    </div>
+  </section>
+
+  <footer>
+    Line numbers refer to <a href="https://github.com/tenstorrent/tt-metal">tenstorrent/tt-metal</a> and were current
+    when this page was written; treat them as pointers, not permalinks.<br>
+    tech_reports/LLMs/llms.md &sect;3.3 &nbsp;&middot;&nbsp; ttnn/cpp/ttnn/operations/ccl/ &nbsp;&middot;&nbsp; models/common/modules/tt_ccl.py
+  </footer>
+
+</div>

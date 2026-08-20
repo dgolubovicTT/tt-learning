@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multichip</title>
+<link rel="stylesheet" href="../shell.css">
+</head>
+<body>
+<div class="wrap">
+
+  <p class="crumb"><a href="../">tt-learning</a> &nbsp;/&nbsp; multichip</p>
+
+  <header>
+    <h1>Multichip</h1>
+    <p class="lede">
+      Running one model across many chips — how a tensor is spread over a mesh, and how the
+      chips exchange what they each computed.
+    </p>
+  </header>
+
+  <div class="list">
+    <a class="item" href="ccl-call.html">
+      <div class="row">
+        <h2>Reading a CCL Call</h2>
+        <span class="meta">Reference</span>
+      </div>
+      <p>
+        What <code>cluster_axis</code>, <code>num_links</code> and <code>topology</code> each control, and why they
+        stop colliding once you notice they live in three different coordinate systems. Worked end to end on a
+        <code>[1, 1, 32, 256]</code> tensor over a 2&#215;4 mesh, with the rules that silently downgrade a
+        requested ring to a line.
+      </p>
+    </a>
+  </div>
+
+  <footer>
+    Behaviour is described against
+    <a href="https://github.com/tenstorrent/tt-metal">tt-metal</a>; each page cites the files it was checked against.
+  </footer>
+
+</div>
+</body>
+</html>
