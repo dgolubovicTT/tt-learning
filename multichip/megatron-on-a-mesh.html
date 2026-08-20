@@ -138,6 +138,10 @@
   }
   figure svg { display: block; width: 100%; max-width: 100%; height: auto; color: var(--ink-2); }
   .fig-narrow svg { min-width: 460px; }
+  .fig-wide svg { min-width: 620px; }
+  .figsrc { font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+            margin: 7px 0 0; max-width: var(--measure); }
+  .figsrc a { color: var(--ink-2); }
   .fig-tall svg { min-width: 520px; max-width: 600px; margin: 0 auto; }
   figcaption { font-size: 14.5px; line-height: 1.5; color: var(--ink-2); margin-top: 11px; max-width: var(--measure); }
   figcaption b { color: var(--ink); font-weight: 600; }
@@ -521,78 +525,85 @@
       <span><i class="sw sw-ccl"></i> collective &#8212; data crosses ethernet</span>
     </p>
 
-    <figure class="fig-narrow">
+    <figure class="fig-wide">
       <div class="fig-frame">
-        <svg viewBox="0 0 710 578" role="img" aria-label="The attention sublayer as seven steps, with each weight shown and labelled by how it is cut. The activation enters fractured. all_gather makes it gathered. rms_norm leaves it gathered. The W_qkv linear uses a column-parallel weight whose columns are heads, so its output is fractured by head. sdpa runs on whole heads and needs no communication. The W_o linear uses a row-parallel weight cut along the contracted axis, so every chip produces a partial sum. reduce_scatter adds the partials and hands back a fractured slice, and the residual add is elementwise on matching layouts.">
-          <defs>
-            <marker id="f1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
-            </marker>
-          </defs>
-
-          <text x="138" y="16" font-family="ui-monospace, monospace" font-size="10" font-weight="600" fill="var(--muted)" text-anchor="end">ACTIVATION STATE</text>
-          <text x="418" y="16" font-family="ui-monospace, monospace" font-size="10" font-weight="600" fill="var(--muted)">WEIGHT, AND HOW IT IS CUT</text>
-
-          <text x="138" y="34" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ink-2)" text-anchor="end">fractured [S, H/N]</text>
-          <line x1="272" y1="22" x2="272" y2="42" stroke="currentColor" stroke-width="1.5" marker-end="url(#f1)"/>
-
-          <rect x="152" y="44" width="240" height="38" rx="3" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
-          <text x="272" y="68" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">all_gather   dim=3</text>
-          <line x1="272" y1="82" x2="272" y2="118" stroke="currentColor" stroke-width="1.5" marker-end="url(#f1)"/>
-          <text x="138" y="104" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ccl)" text-anchor="end">gathered [S, H]</text>
-
-          <rect x="152" y="120" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
-          <text x="272" y="144" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">rms_norm</text>
-          <line x1="272" y1="158" x2="272" y2="194" stroke="currentColor" stroke-width="1.5" marker-end="url(#f1)"/>
-
-          <rect x="152" y="196" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
-          <text x="272" y="220" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">linear   W_qkv</text>
-          <rect x="418" y="196" width="76" height="38" fill="var(--local-wash)" stroke="var(--local)" stroke-width="1.5"/>
-          <line x1="437" y1="196" x2="437" y2="234" stroke="var(--local)" stroke-width="1.2"/>
-          <line x1="456" y1="196" x2="456" y2="234" stroke="var(--local)" stroke-width="1.2"/>
-          <line x1="475" y1="196" x2="475" y2="234" stroke="var(--local)" stroke-width="1.2"/>
-          <text x="506" y="206" font-family="ui-monospace, monospace" font-size="10.5" font-weight="600" fill="var(--ink)">column-parallel</text>
-          <text x="506" y="220" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">N split &#183; columns are heads</text>
-          <text x="506" y="234" font-family="ui-monospace, monospace" font-size="10" fill="var(--local)">&#8594; each chip owns whole heads</text>
-          <line x1="272" y1="234" x2="272" y2="270" stroke="currentColor" stroke-width="1.5" marker-end="url(#f1)"/>
-          <text x="138" y="256" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--local)" text-anchor="end">fractured by head</text>
-
-          <rect x="152" y="272" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
-          <text x="272" y="296" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">sdpa   is_causal</text>
-          <text x="418" y="290" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">no weight &#8212; Q, K, V for a whole</text>
-          <text x="418" y="304" font-family="ui-monospace, monospace" font-size="10" fill="var(--local)">head are all on the same chip</text>
-          <line x1="272" y1="310" x2="272" y2="346" stroke="currentColor" stroke-width="1.5" marker-end="url(#f1)"/>
-
-          <rect x="152" y="348" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
-          <text x="272" y="372" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">linear   W_o</text>
-          <rect x="418" y="348" width="76" height="38" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="1.5"/>
-          <line x1="418" y1="357.5" x2="494" y2="357.5" stroke="var(--ccl)" stroke-width="1.2"/>
-          <line x1="418" y1="367" x2="494" y2="367" stroke="var(--ccl)" stroke-width="1.2"/>
-          <line x1="418" y1="376.5" x2="494" y2="376.5" stroke="var(--ccl)" stroke-width="1.2"/>
-          <text x="506" y="358" font-family="ui-monospace, monospace" font-size="10.5" font-weight="600" fill="var(--ink)">row-parallel</text>
-          <text x="506" y="372" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">K split &#183; the contracted axis</text>
-          <text x="506" y="386" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)">&#8594; each chip holds a partial sum</text>
-          <line x1="272" y1="386" x2="272" y2="422" stroke="currentColor" stroke-width="1.5" marker-end="url(#f1)"/>
-          <text x="138" y="408" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ccl)" text-anchor="end">partial [S, H]</text>
-
-          <rect x="152" y="424" width="240" height="38" rx="3" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
-          <text x="272" y="448" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">reduce_scatter   dim=3</text>
-          <text x="418" y="442" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)">adds the partials, then keeps</text>
-          <text x="418" y="456" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)">only this chip&#8217;s slice</text>
-          <line x1="272" y1="462" x2="272" y2="498" stroke="currentColor" stroke-width="1.5" marker-end="url(#f1)"/>
-          <text x="138" y="484" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ink-2)" text-anchor="end">fractured [S, H/N]</text>
-
-          <rect x="152" y="500" width="240" height="38" rx="3" fill="var(--surface)" stroke="var(--resid)" stroke-width="1.5"/>
-          <text x="272" y="524" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">add   residual</text>
-          <text x="418" y="518" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">the residual was never gathered,</text>
-          <text x="418" y="532" font-family="ui-monospace, monospace" font-size="10" fill="var(--resid)">so both sides already match</text>
-
-          <text x="272" y="566" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink-2)" text-anchor="middle">out &#183; fractured [S, H/N]</text>
-        </svg>
+        <svg viewBox="0 0 764 844" role="img" aria-label="The attention sublayer as eight operations in a column. Each row shows the weight as a second operand on the left with its cut pattern drawn, the operation in the middle, and the resulting activation shape and state on the right. The activation enters fractured with shape S by H over N. all_gather makes it gathered with shape S by H. rms_norm uses a replicated gamma and leaves it gathered. The W_qkv linear uses a column-cut weight of shape H by Q over N, cut on head boundaries, so the output is fractured by head. split_heads and sdpa move no data. The W_o linear uses a row-cut weight of shape h over N by H, where h is n_heads times head_dim, so its output is a partial of shape S by H. reduce_scatter adds the partials and returns a fractured slice, and the residual add matches layouts exactly.">
+          <defs><marker id="attention-sublayer-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/></marker><marker id="attention-sublayer-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/></marker></defs>
+          <text x="8" y="16" font-family="ui-monospace, monospace" font-size="10" fill="var(--muted)" text-anchor="start" font-weight="600">WEIGHT  ·  SECOND OPERAND</text>
+          <text x="248" y="16" font-family="ui-monospace, monospace" font-size="10" fill="var(--muted)" text-anchor="start" font-weight="600">OPERATION</text>
+          <text x="486" y="16" font-family="ui-monospace, monospace" font-size="10" fill="var(--muted)" text-anchor="start" font-weight="600">ACTIVATION OUT</text>
+          <text x="486" y="34" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, H/N]</text>
+          <text x="582" y="34" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink-2)" text-anchor="start">fractured</text>
+          <line x1="355.0" y1="24" x2="355.0" y2="50" stroke="currentColor" stroke-width="1.5" marker-end="url(#attention-sublayer-a)"/>
+          <rect x="248" y="52" width="214" height="48" rx="3" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
+          <text x="355.0" y="81" font-family="ui-monospace, monospace" font-size="12.5" fill="var(--ink)" text-anchor="middle" font-weight="600">all_gather   dim=3</text>
+          <text x="486" y="74" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, H]</text>
+          <text x="486" y="88" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)" text-anchor="start">gathered</text>
+          <text x="486" y="102" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="start">every chip now holds the whole feature vector</text>
+          <line x1="355.0" y1="100" x2="355.0" y2="146" stroke="currentColor" stroke-width="1.5" marker-end="url(#attention-sublayer-a)"/>
+          <rect x="248" y="148" width="214" height="48" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="355.0" y="177" font-family="ui-monospace, monospace" font-size="12.5" fill="var(--ink)" text-anchor="middle" font-weight="600">rms_norm</text>
+          <rect x="8" y="157.0" width="58" height="30" fill="none" stroke="var(--muted)" stroke-width="1.4"/><rect x="11" y="160.0" width="58" height="30" fill="none" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 2"/>
+          <text x="74" y="166" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink)" text-anchor="start">gamma   [H]</text>
+          <text x="74" y="180" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--muted)" text-anchor="start">replicated on every chip</text>
+          <text x="8" y="199.0" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--muted)" text-anchor="start" font-weight="600">replicated</text>
+          <line x1="186" y1="172.0" x2="244" y2="172.0" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#attention-sublayer-w)"/>
+          <text x="486" y="170" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, H]</text>
+          <text x="486" y="184" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)" text-anchor="start">gathered</text>
+          <line x1="355.0" y1="196" x2="355.0" y2="242" stroke="currentColor" stroke-width="1.5" marker-end="url(#attention-sublayer-a)"/>
+          <rect x="248" y="244" width="214" height="48" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="355.0" y="273" font-family="ui-monospace, monospace" font-size="12.5" fill="var(--ink)" text-anchor="middle" font-weight="600">linear   W_qkv</text>
+          <rect x="8" y="253.0" width="58" height="30" fill="none" stroke="var(--local)" stroke-width="1.4"/><line x1="22.5" y1="253.0" x2="22.5" y2="283.0" stroke="var(--local)" stroke-width="1"/><line x1="37.0" y1="253.0" x2="37.0" y2="283.0" stroke="var(--local)" stroke-width="1"/><line x1="51.5" y1="253.0" x2="51.5" y2="283.0" stroke="var(--local)" stroke-width="1"/><rect x="8" y="253.0" width="14.5" height="30" fill="var(--local)" opacity="0.28"/>
+          <text x="74" y="262" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink)" text-anchor="start">W_qkv   [H, Q/N]</text>
+          <text x="74" y="276" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--muted)" text-anchor="start">cut on head boundaries</text>
+          <text x="8" y="295.0" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--local)" text-anchor="start" font-weight="600">column-cut</text>
+          <line x1="186" y1="268.0" x2="244" y2="268.0" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#attention-sublayer-w)"/>
+          <text x="486" y="266" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, Q/N]</text>
+          <text x="486" y="280" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink-2)" text-anchor="start">fractured by head</text>
+          <text x="486" y="294" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="start">Q = head_dim &#215; (n_heads + 2 n_kv_heads)</text>
+          <line x1="355.0" y1="292" x2="355.0" y2="338" stroke="currentColor" stroke-width="1.5" marker-end="url(#attention-sublayer-a)"/>
+          <rect x="248" y="340" width="214" height="48" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="355.0" y="369" font-family="ui-monospace, monospace" font-size="12.5" fill="var(--ink)" text-anchor="middle" font-weight="600">split_heads</text>
+          <text x="486" y="362" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">q,k,v  [S, h/N]</text>
+          <text x="486" y="376" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink-2)" text-anchor="start">fractured by head</text>
+          <text x="486" y="390" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="start">a reshape - no data moves</text>
+          <line x1="355.0" y1="388" x2="355.0" y2="434" stroke="currentColor" stroke-width="1.5" marker-end="url(#attention-sublayer-a)"/>
+          <rect x="248" y="436" width="214" height="48" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="355.0" y="465" font-family="ui-monospace, monospace" font-size="12.5" fill="var(--ink)" text-anchor="middle" font-weight="600">sdpa   is_causal</text>
+          <text x="486" y="458" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, h/N]</text>
+          <text x="486" y="472" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink-2)" text-anchor="start">fractured by head</text>
+          <text x="486" y="486" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="start">a head only ever mixes with itself</text>
+          <line x1="355.0" y1="484" x2="355.0" y2="530" stroke="currentColor" stroke-width="1.5" marker-end="url(#attention-sublayer-a)"/>
+          <rect x="248" y="532" width="214" height="48" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="355.0" y="561" font-family="ui-monospace, monospace" font-size="12.5" fill="var(--ink)" text-anchor="middle" font-weight="600">linear   W_o</text>
+          <rect x="8" y="541.0" width="58" height="30" fill="none" stroke="var(--ccl)" stroke-width="1.4"/><line x1="8" y1="548.5" x2="66" y2="548.5" stroke="var(--ccl)" stroke-width="1"/><line x1="8" y1="556.0" x2="66" y2="556.0" stroke="var(--ccl)" stroke-width="1"/><line x1="8" y1="563.5" x2="66" y2="563.5" stroke="var(--ccl)" stroke-width="1"/><rect x="8" y="541.0" width="58" height="7.5" fill="var(--ccl)" opacity="0.28"/>
+          <text x="74" y="550" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink)" text-anchor="start">W_o   [h/N, H]</text>
+          <text x="74" y="564" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--muted)" text-anchor="start">K = h = n_heads &#215; head_dim</text>
+          <text x="8" y="583.0" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--ccl)" text-anchor="start" font-weight="600">row-cut</text>
+          <line x1="186" y1="556.0" x2="244" y2="556.0" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#attention-sublayer-w)"/>
+          <text x="486" y="554" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, H]</text>
+          <text x="486" y="568" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)" text-anchor="start" font-weight="600">PARTIAL</text>
+          <text x="486" y="582" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="start">full shape, only this chip's terms of the sum</text>
+          <line x1="355.0" y1="580" x2="355.0" y2="626" stroke="currentColor" stroke-width="1.5" marker-end="url(#attention-sublayer-a)"/>
+          <rect x="248" y="628" width="214" height="48" rx="3" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
+          <text x="355.0" y="657" font-family="ui-monospace, monospace" font-size="12.5" fill="var(--ink)" text-anchor="middle" font-weight="600">reduce_scatter   dim=3</text>
+          <text x="486" y="650" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, H/N]</text>
+          <text x="486" y="664" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink-2)" text-anchor="start">fractured</text>
+          <text x="486" y="678" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="start">adds the partials, keeps one slice</text>
+          <line x1="355.0" y1="676" x2="355.0" y2="722" stroke="currentColor" stroke-width="1.5" marker-end="url(#attention-sublayer-a)"/>
+          <rect x="248" y="724" width="214" height="48" rx="3" fill="var(--surface)" stroke="var(--resid)" stroke-width="1.5"/>
+          <text x="355.0" y="753" font-family="ui-monospace, monospace" font-size="12.5" fill="var(--ink)" text-anchor="middle" font-weight="600">add   residual</text>
+          <text x="8" y="744" font-family="ui-monospace, monospace" font-size="10" fill="var(--resid)" text-anchor="start">residual   [S, H/N]</text>
+          <text x="8" y="758" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--muted)" text-anchor="start">never gathered, so layouts match</text>
+          <line x1="186" y1="748.0" x2="244" y2="748.0" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#attention-sublayer-w)"/>
+          <text x="486" y="746" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, H/N]</text>
+          <text x="486" y="760" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink-2)" text-anchor="start">fractured</text>
+          </svg>
       </div>
       <figcaption>The attention sublayer. <b>Read the middle column first:</b> <code>W_qkv</code> is cut down its
         columns and <code>W_o</code> across its rows, and every state in the left column follows from those two
         cuts.</figcaption>
+      <p class="figsrc">Editable source: <a href="assets/attention-sublayer.excalidraw">attention-sublayer.excalidraw</a> &#183; open it at excalidraw.com</p>
     </figure>
 
     <h3>Why the cut in <code>W_qkv</code> is along heads</h3>
@@ -625,78 +636,78 @@ self.n_local_heads = self.n_heads // self.cluster_shape[<span class="c-cmt">1</s
     <p>Structurally identical, which is the point &mdash; only the dimension being cut changes. Here it is
       <code>F</code>, the FFN inner dim (<code>args.hidden_dim</code>, 28672 for Llama-70B).</p>
 
-    <figure class="fig-narrow">
+    <figure class="fig-wide">
       <div class="fig-frame">
-        <svg viewBox="0 0 710 578" role="img" aria-label="The MLP sublayer as seven steps with weights shown. The activation enters fractured, all_gather makes it gathered, rms_norm leaves it gathered. The w1 and w3 linears use column-parallel weights cut along the FFN inner dimension F, so their outputs are fractured along F. The SiLU multiply combines two tensors that are fractured along F identically, so it needs no communication. The w2 linear is row-parallel with F as its contracted axis, producing partial sums, and reduce_scatter adds them and returns a fractured slice before the residual add.">
-          <defs>
-            <marker id="f2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
-            </marker>
-          </defs>
-
-          <text x="138" y="16" font-family="ui-monospace, monospace" font-size="10" font-weight="600" fill="var(--muted)" text-anchor="end">ACTIVATION STATE</text>
-          <text x="418" y="16" font-family="ui-monospace, monospace" font-size="10" font-weight="600" fill="var(--muted)">WEIGHT, AND HOW IT IS CUT</text>
-
-          <text x="138" y="34" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ink-2)" text-anchor="end">fractured [S, H/N]</text>
-          <line x1="272" y1="22" x2="272" y2="42" stroke="currentColor" stroke-width="1.5" marker-end="url(#f2)"/>
-
-          <rect x="152" y="44" width="240" height="38" rx="3" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
-          <text x="272" y="68" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">all_gather   dim=3</text>
-          <line x1="272" y1="82" x2="272" y2="118" stroke="currentColor" stroke-width="1.5" marker-end="url(#f2)"/>
-          <text x="138" y="104" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ccl)" text-anchor="end">gathered [S, H]</text>
-
-          <rect x="152" y="120" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
-          <text x="272" y="144" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">rms_norm</text>
-          <line x1="272" y1="158" x2="272" y2="194" stroke="currentColor" stroke-width="1.5" marker-end="url(#f2)"/>
-
-          <rect x="152" y="196" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
-          <text x="272" y="220" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">linear   w1, w3</text>
-          <rect x="418" y="196" width="76" height="38" fill="var(--local-wash)" stroke="var(--local)" stroke-width="1.5"/>
-          <line x1="437" y1="196" x2="437" y2="234" stroke="var(--local)" stroke-width="1.2"/>
-          <line x1="456" y1="196" x2="456" y2="234" stroke="var(--local)" stroke-width="1.2"/>
-          <line x1="475" y1="196" x2="475" y2="234" stroke="var(--local)" stroke-width="1.2"/>
-          <text x="506" y="206" font-family="ui-monospace, monospace" font-size="10.5" font-weight="600" fill="var(--ink)">column-parallel</text>
-          <text x="506" y="220" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">F split &#183; the FFN inner dim</text>
-          <text x="506" y="234" font-family="ui-monospace, monospace" font-size="10" fill="var(--local)">&#8594; both cut the same way</text>
-          <line x1="272" y1="234" x2="272" y2="270" stroke="currentColor" stroke-width="1.5" marker-end="url(#f2)"/>
-          <text x="138" y="256" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--local)" text-anchor="end">fractured [S, F/N]</text>
-
-          <rect x="152" y="272" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
-          <text x="272" y="296" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">mul   SiLU(w1) &#215; w3</text>
-          <text x="418" y="290" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">no weight &#8212; two operands with</text>
-          <text x="418" y="304" font-family="ui-monospace, monospace" font-size="10" fill="var(--local)">the same layout, elementwise</text>
-          <line x1="272" y1="310" x2="272" y2="346" stroke="currentColor" stroke-width="1.5" marker-end="url(#f2)"/>
-
-          <rect x="152" y="348" width="240" height="38" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
-          <text x="272" y="372" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">linear   w2</text>
-          <rect x="418" y="348" width="76" height="38" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="1.5"/>
-          <line x1="418" y1="357.5" x2="494" y2="357.5" stroke="var(--ccl)" stroke-width="1.2"/>
-          <line x1="418" y1="367" x2="494" y2="367" stroke="var(--ccl)" stroke-width="1.2"/>
-          <line x1="418" y1="376.5" x2="494" y2="376.5" stroke="var(--ccl)" stroke-width="1.2"/>
-          <text x="506" y="358" font-family="ui-monospace, monospace" font-size="10.5" font-weight="600" fill="var(--ink)">row-parallel</text>
-          <text x="506" y="372" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">F split &#183; now the contracted axis</text>
-          <text x="506" y="386" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)">&#8594; each chip holds a partial sum</text>
-          <line x1="272" y1="386" x2="272" y2="422" stroke="currentColor" stroke-width="1.5" marker-end="url(#f2)"/>
-          <text x="138" y="408" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ccl)" text-anchor="end">partial [S, H]</text>
-
-          <rect x="152" y="424" width="240" height="38" rx="3" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
-          <text x="272" y="448" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">reduce_scatter   dim=3</text>
-          <text x="418" y="442" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)">adds the partials, then keeps</text>
-          <text x="418" y="456" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)">only this chip&#8217;s slice</text>
-          <line x1="272" y1="462" x2="272" y2="498" stroke="currentColor" stroke-width="1.5" marker-end="url(#f2)"/>
-          <text x="138" y="484" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ink-2)" text-anchor="end">fractured [S, H/N]</text>
-
-          <rect x="152" y="500" width="240" height="38" rx="3" fill="var(--surface)" stroke="var(--resid)" stroke-width="1.5"/>
-          <text x="272" y="524" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">add   residual</text>
-          <text x="418" y="518" font-family="ui-monospace, monospace" font-size="10" fill="currentColor">same layout on both sides,</text>
-          <text x="418" y="532" font-family="ui-monospace, monospace" font-size="10" fill="var(--resid)">so it is elementwise and free</text>
-
-          <text x="272" y="566" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink-2)" text-anchor="middle">out &#183; fractured [S, H/N]</text>
-        </svg>
+        <svg viewBox="0 0 764 748" role="img" aria-label="The MLP sublayer as seven operations in a column, laid out the same way. The activation enters fractured, all_gather makes it gathered, rms_norm uses a replicated gamma. The w1 and w3 linears use column-cut weights of shape H by F over N cut at the same offsets, so both outputs are fractured on F identically. The SiLU multiply combines two operands with identical layout and moves no data. The w2 linear is row-cut with F as its contracted axis and produces a partial of shape S by H. reduce_scatter adds the partials and returns a fractured slice before the residual add.">
+          <defs><marker id="mlp-sublayer-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/></marker><marker id="mlp-sublayer-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/></marker></defs>
+          <text x="8" y="16" font-family="ui-monospace, monospace" font-size="10" fill="var(--muted)" text-anchor="start" font-weight="600">WEIGHT  ·  SECOND OPERAND</text>
+          <text x="248" y="16" font-family="ui-monospace, monospace" font-size="10" fill="var(--muted)" text-anchor="start" font-weight="600">OPERATION</text>
+          <text x="486" y="16" font-family="ui-monospace, monospace" font-size="10" fill="var(--muted)" text-anchor="start" font-weight="600">ACTIVATION OUT</text>
+          <text x="486" y="34" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, H/N]</text>
+          <text x="582" y="34" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink-2)" text-anchor="start">fractured</text>
+          <line x1="355.0" y1="24" x2="355.0" y2="50" stroke="currentColor" stroke-width="1.5" marker-end="url(#mlp-sublayer-a)"/>
+          <rect x="248" y="52" width="214" height="48" rx="3" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
+          <text x="355.0" y="81" font-family="ui-monospace, monospace" font-size="12.5" fill="var(--ink)" text-anchor="middle" font-weight="600">all_gather   dim=3</text>
+          <text x="486" y="74" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, H]</text>
+          <text x="486" y="88" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)" text-anchor="start">gathered</text>
+          <line x1="355.0" y1="100" x2="355.0" y2="146" stroke="currentColor" stroke-width="1.5" marker-end="url(#mlp-sublayer-a)"/>
+          <rect x="248" y="148" width="214" height="48" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="355.0" y="177" font-family="ui-monospace, monospace" font-size="12.5" fill="var(--ink)" text-anchor="middle" font-weight="600">rms_norm</text>
+          <rect x="8" y="157.0" width="58" height="30" fill="none" stroke="var(--muted)" stroke-width="1.4"/><rect x="11" y="160.0" width="58" height="30" fill="none" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 2"/>
+          <text x="74" y="166" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink)" text-anchor="start">gamma   [H]</text>
+          <text x="74" y="180" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--muted)" text-anchor="start">replicated on every chip</text>
+          <text x="8" y="199.0" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--muted)" text-anchor="start" font-weight="600">replicated</text>
+          <line x1="186" y1="172.0" x2="244" y2="172.0" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#mlp-sublayer-w)"/>
+          <text x="486" y="170" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, H]</text>
+          <text x="486" y="184" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)" text-anchor="start">gathered</text>
+          <line x1="355.0" y1="196" x2="355.0" y2="242" stroke="currentColor" stroke-width="1.5" marker-end="url(#mlp-sublayer-a)"/>
+          <rect x="248" y="244" width="214" height="48" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="355.0" y="273" font-family="ui-monospace, monospace" font-size="12.5" fill="var(--ink)" text-anchor="middle" font-weight="600">linear   w1, w3</text>
+          <rect x="8" y="253.0" width="58" height="30" fill="none" stroke="var(--local)" stroke-width="1.4"/><line x1="22.5" y1="253.0" x2="22.5" y2="283.0" stroke="var(--local)" stroke-width="1"/><line x1="37.0" y1="253.0" x2="37.0" y2="283.0" stroke="var(--local)" stroke-width="1"/><line x1="51.5" y1="253.0" x2="51.5" y2="283.0" stroke="var(--local)" stroke-width="1"/><rect x="8" y="253.0" width="14.5" height="30" fill="var(--local)" opacity="0.28"/>
+          <text x="74" y="262" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink)" text-anchor="start">w1, w3   [H, F/N]</text>
+          <text x="74" y="276" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--muted)" text-anchor="start">both cut at the same offsets</text>
+          <text x="8" y="295.0" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--local)" text-anchor="start" font-weight="600">column-cut</text>
+          <line x1="186" y1="268.0" x2="244" y2="268.0" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#mlp-sublayer-w)"/>
+          <text x="486" y="266" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, F/N]  &#215;2</text>
+          <text x="486" y="280" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink-2)" text-anchor="start">fractured on F</text>
+          <text x="486" y="294" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="start">F = 28672 vs H = 8192 for Llama-70B</text>
+          <line x1="355.0" y1="292" x2="355.0" y2="338" stroke="currentColor" stroke-width="1.5" marker-end="url(#mlp-sublayer-a)"/>
+          <rect x="248" y="340" width="214" height="48" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="355.0" y="369" font-family="ui-monospace, monospace" font-size="12.5" fill="var(--ink)" text-anchor="middle" font-weight="600">mul   SiLU(w1) &#215; w3</text>
+          <text x="486" y="362" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, F/N]</text>
+          <text x="486" y="376" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink-2)" text-anchor="start">fractured on F</text>
+          <text x="486" y="390" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="start">two operands, identical layout - elementwise</text>
+          <line x1="355.0" y1="388" x2="355.0" y2="434" stroke="currentColor" stroke-width="1.5" marker-end="url(#mlp-sublayer-a)"/>
+          <rect x="248" y="436" width="214" height="48" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
+          <text x="355.0" y="465" font-family="ui-monospace, monospace" font-size="12.5" fill="var(--ink)" text-anchor="middle" font-weight="600">linear   w2</text>
+          <rect x="8" y="445.0" width="58" height="30" fill="none" stroke="var(--ccl)" stroke-width="1.4"/><line x1="8" y1="452.5" x2="66" y2="452.5" stroke="var(--ccl)" stroke-width="1"/><line x1="8" y1="460.0" x2="66" y2="460.0" stroke="var(--ccl)" stroke-width="1"/><line x1="8" y1="467.5" x2="66" y2="467.5" stroke="var(--ccl)" stroke-width="1"/><rect x="8" y="445.0" width="58" height="7.5" fill="var(--ccl)" opacity="0.28"/>
+          <text x="74" y="454" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink)" text-anchor="start">w2   [F/N, H]</text>
+          <text x="74" y="468" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--muted)" text-anchor="start">F is now the contracted axis</text>
+          <text x="8" y="487.0" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--ccl)" text-anchor="start" font-weight="600">row-cut</text>
+          <line x1="186" y1="460.0" x2="244" y2="460.0" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#mlp-sublayer-w)"/>
+          <text x="486" y="458" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, H]</text>
+          <text x="486" y="472" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)" text-anchor="start" font-weight="600">PARTIAL</text>
+          <text x="486" y="486" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="start">full shape, only this chip's terms of the sum</text>
+          <line x1="355.0" y1="484" x2="355.0" y2="530" stroke="currentColor" stroke-width="1.5" marker-end="url(#mlp-sublayer-a)"/>
+          <rect x="248" y="532" width="214" height="48" rx="3" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
+          <text x="355.0" y="561" font-family="ui-monospace, monospace" font-size="12.5" fill="var(--ink)" text-anchor="middle" font-weight="600">reduce_scatter   dim=3</text>
+          <text x="486" y="554" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, H/N]</text>
+          <text x="486" y="568" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink-2)" text-anchor="start">fractured</text>
+          <text x="486" y="582" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="start">adds the partials, keeps one slice</text>
+          <line x1="355.0" y1="580" x2="355.0" y2="626" stroke="currentColor" stroke-width="1.5" marker-end="url(#mlp-sublayer-a)"/>
+          <rect x="248" y="628" width="214" height="48" rx="3" fill="var(--surface)" stroke="var(--resid)" stroke-width="1.5"/>
+          <text x="355.0" y="657" font-family="ui-monospace, monospace" font-size="12.5" fill="var(--ink)" text-anchor="middle" font-weight="600">add   residual</text>
+          <text x="8" y="648" font-family="ui-monospace, monospace" font-size="10" fill="var(--resid)" text-anchor="start">residual   [S, H/N]</text>
+          <text x="8" y="662" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--muted)" text-anchor="start">same layout on both sides</text>
+          <line x1="186" y1="652.0" x2="244" y2="652.0" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#mlp-sublayer-w)"/>
+          <text x="486" y="650" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">[S, H/N]</text>
+          <text x="486" y="664" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink-2)" text-anchor="start">fractured</text>
+          </svg>
       </div>
       <figcaption>The MLP sublayer. <b><code>F</code> is the output axis of <code>w1</code>/<code>w3</code> and the
         contracted axis of <code>w2</code></b> &mdash; the same dimension, playing both roles. Cutting it once serves
         both matmuls, which is exactly why nothing has to move between them.</figcaption>
+      <p class="figsrc">Editable source: <a href="assets/mlp-sublayer.excalidraw">mlp-sublayer.excalidraw</a> &#183; open it at excalidraw.com</p>
     </figure>
 
     <h3>Why <code>mul</code> is free, and what that does <em>not</em> mean</h3>
