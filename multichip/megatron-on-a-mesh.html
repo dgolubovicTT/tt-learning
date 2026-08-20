@@ -89,6 +89,11 @@
     font-size: 18.5px; line-height: 1.55; color: var(--ink-2);
     margin: 0; max-width: 60ch; text-wrap: pretty;
   }
+  .deftag {
+    font-size: 15px; line-height: 1.5; color: var(--ink-2); max-width: 62ch;
+    margin: 22px 0 0; padding-left: 14px; border-left: 3px solid var(--ccl);
+  }
+  .deftag b { font-family: var(--font-mono); font-size: 13.5px; font-weight: 600; color: var(--ink); }
 
   section { padding-top: 54px; }
 
@@ -208,6 +213,9 @@
     <h1>Megatron on a Mesh</h1>
     <p class="lede">A 70B model does not fit on one chip. The way it gets split is older than the hardware and
       simpler than it looks &mdash; it is two matmuls, arranged so that only one of them has to talk.</p>
+    <p class="deftag"><b>fractured</b> &mdash; a tensor split across chips, each holding a different slice. This is the
+      codebase's word; it avoids "sharded", which TT-NN already uses for splitting across the cores <em>within</em> one
+      chip.</p>
   </header>
 
   <section id="hardware">
@@ -261,7 +269,7 @@
 
     <figure class="fig-narrow">
       <div class="fig-frame">
-        <svg viewBox="0 0 660 300" role="img" aria-label="Two ways to split one matmul across two chips. Column-parallel splits the weight by columns; each chip needs the whole input X and produces a distinct half of the output, so the output is sharded and no summation is needed. Row-parallel splits the weight by rows; each chip takes a half of the input and produces a full-size but incomplete output, so the two outputs must be summed.">
+        <svg viewBox="0 0 660 300" role="img" aria-label="Two ways to split one matmul across two chips. Column-parallel splits the weight by columns; each chip needs the whole input X and produces a distinct half of the output, so the output is fractured and no summation is needed. Row-parallel splits the weight by rows; each chip takes a half of the input and produces a full-size but incomplete output, so the two outputs must be summed.">
           <defs>
             <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
@@ -288,14 +296,14 @@
 
           <line x1="194" y1="80" x2="228" y2="80" stroke="currentColor" stroke-width="1.4" marker-end="url(#a1)"/>
 
-          <!-- Y sharded -->
+          <!-- Y fractured -->
           <rect x="240" y="44" width="34" height="72" fill="var(--local-wash)" stroke="var(--local)" stroke-width="1.5"/>
           <rect x="276" y="44" width="34" height="72" fill="var(--local-wash)" stroke="var(--local)" stroke-width="1.5" stroke-dasharray="3 2"/>
           <text x="257" y="84" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink)" text-anchor="middle">Y0</text>
           <text x="293" y="84" font-family="ui-monospace, monospace" font-size="10" fill="var(--ink)" text-anchor="middle">Y1</text>
           <text x="275" y="132" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" text-anchor="middle">[S, N/2] each</text>
 
-          <text x="20" y="176" font-family="ui-monospace, monospace" font-size="11" fill="var(--local)" font-weight="600">output is SHARDED</text>
+          <text x="20" y="176" font-family="ui-monospace, monospace" font-size="11" fill="var(--local)" font-weight="600">output is FRACTURED</text>
           <text x="20" y="194" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">the halves are different columns &#8212; concatenate, never add</text>
           <text x="20" y="212" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">no collective needed &#8212; but X must already be whole</text>
 
@@ -338,21 +346,21 @@
           <text x="20" y="274" font-family="ui-monospace, monospace" font-size="11.5" fill="currentColor">column-parallel WANTS a whole input &#183; row-parallel PRODUCES a partial output</text>
         </svg>
       </div>
-      <figcaption>Same matmul, two cuts. <b>Column-parallel needs its input gathered and hands back a sharded output.
-        Row-parallel accepts a sharded input and hands back a partial one that has to be summed.</b> Neither is
+      <figcaption>Same matmul, two cuts. <b>Column-parallel needs its input gathered and hands back a fractured output.
+        Row-parallel accepts a fractured input and hands back a partial one that has to be summed.</b> Neither is
         good on its own &mdash; each has a cost at one end.</figcaption>
     </figure>
 
     <h3>Chaining them cancels the costs</h3>
 
     <p>Notice that the two requirements are complements. Column-parallel <em class="term">produces</em> exactly the
-      sharded layout that row-parallel <em class="term">wants</em>. So if you always use them as a pair &mdash;
+      fractured layout that row-parallel <em class="term">wants</em>. So if you always use them as a pair &mdash;
       column first, row second &mdash; the intermediate never needs to be gathered, and you pay a single collective at
       the very end.</p>
 
     <figure class="fig-narrow">
       <div class="fig-frame">
-        <svg viewBox="0 0 660 190" role="img" aria-label="A column-parallel matmul followed by a row-parallel matmul. The sharded output of the first is exactly the sharded input the second needs, so no collective sits between them. Only one reduction is needed, at the very end.">
+        <svg viewBox="0 0 660 190" role="img" aria-label="A column-parallel matmul followed by a row-parallel matmul. The fractured output of the first is exactly the fractured input the second needs, so no collective sits between them. Only one reduction is needed, at the very end.">
           <defs>
             <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
@@ -371,7 +379,7 @@
 
           <line x1="264" y1="75" x2="304" y2="75" stroke="currentColor" stroke-width="1.5" marker-end="url(#a2)"/>
           <text x="284" y="66" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--muted)" text-anchor="middle">H</text>
-          <text x="284" y="108" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--local)" text-anchor="middle">sharded</text>
+          <text x="284" y="108" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--local)" text-anchor="middle">fractured</text>
           <text x="284" y="122" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--local)" text-anchor="middle">no CCL</text>
 
           <rect x="310" y="52" width="118" height="46" rx="3" fill="var(--local-wash)" stroke="var(--local)" stroke-width="1.5"/>
@@ -393,7 +401,7 @@
         </svg>
       </div>
       <figcaption>The conjugate pair. <b>This is all Megatron tensor parallelism is:</b> arrange every consecutive
-        matmul pair as column-then-row, so the intermediate stays sharded and exactly one reduction happens per
+        matmul pair as column-then-row, so the intermediate stays fractured and exactly one reduction happens per
         pair.</figcaption>
     </figure>
 
@@ -450,13 +458,13 @@ self.n_local_heads = self.n_heads // self.cluster_shape[<span class="c-cmt">1</s
       code itself, in three comments in <code>decoder.py</code>:</p>
 
     <div class="note">
-      <span class="note-tag">The residual stream lives sharded</span>
+      <span class="note-tag">The residual stream lives fractured</span>
       <p><code>// x is fractured across devices</code> &mdash; <code>decoder.py:236</code><br>
         <code>// Norms take fractured inputs and output replicated across devices</code> &mdash; <code>:248</code><br>
         <code>// MLP takes replicated inputs and produces fractured outputs</code> &mdash; <code>:309</code></p>
       <p>So: <strong>the norm is the gather.</strong> That is the one place the full hidden vector has to exist, because
         RMSNorm needs a sum over the whole feature dimension. The sublayer then fractures it again on the way out. The
-        residual add is elementwise on sharded data and costs nothing.</p>
+        residual add is elementwise on fractured data and costs nothing.</p>
     </div>
 
     <h3>Reading the diagram</h3>
@@ -470,7 +478,7 @@ self.n_local_heads = self.n_heads // self.cluster_shape[<span class="c-cmt">1</s
           <tr><th>Term</th><th>Meaning</th></tr>
         </thead>
         <tbody>
-          <tr><td class="num">sharded</td><td>each chip holds a <em class="term">different</em> slice; concatenating the slices gives the whole tensor</td></tr>
+          <tr><td class="num">fractured</td><td>each chip holds a <em class="term">different</em> slice; concatenating the slices gives the whole tensor</td></tr>
           <tr><td class="num">gathered</td><td>every chip holds the <em class="term">same</em> complete tensor</td></tr>
           <tr><td class="num">partial</td><td>every chip holds a full-size tensor that is only part of the sum &mdash; must be reduced before it means anything</td></tr>
           <tr><td class="num">S</td><td>sequence length</td></tr>
@@ -481,16 +489,6 @@ self.n_local_heads = self.n_heads // self.cluster_shape[<span class="c-cmt">1</s
       </table>
     </div>
 
-    <div class="note flag">
-      <span class="note-tag">One word of warning about "sharded"</span>
-      <p>This page uses <strong>sharded</strong> for a tensor split <em class="term">across chips</em>, because that is
-        what the word means everywhere else in the field. Be aware that TT-NN already uses "sharded" for something
-        different &mdash; a tensor split across the <em class="term">cores of one chip</em>
-        (<code>ttnn.ShardStrategy</code>, <code>interleaved_to_sharded</code>). That is a memory-layout concept and is
-        unrelated.</p>
-      <p>Because of that clash, <code>tech_reports/LLMs/llms.md</code> and the comments in <code>decoder.py</code> say
-        <strong>fractured</strong> where this page says sharded. Same thing.</p>
-    </div>
 
     <p class="legend">
       <span><i class="sw sw-loc"></i> compute &#8212; nothing crosses a wire</span>
@@ -500,7 +498,7 @@ self.n_local_heads = self.n_heads // self.cluster_shape[<span class="c-cmt">1</s
 
     <figure class="fig-tall">
       <div class="fig-frame">
-        <svg viewBox="0 0 580 968" role="img" aria-label="One decoder layer as a vertical flow of fourteen nodes, each a single operation. Reading down: the input is sharded with shape S by H over N. An all_gather on dim 3 makes it gathered with shape S by H. rms_norm leaves it gathered. A linear with W_qkv makes it sharded by head. sdpa leaves it sharded by head. A linear with W_o makes it partial with shape S by H. A reduce_scatter on dim 3 makes it sharded again. An add with the residual leaves it sharded. Then the same pattern repeats for the MLP: all_gather, rms_norm, a linear with w1 and w3 producing a tensor sharded on the FFN dimension, a multiply that leaves it sharded, a linear with w2 producing partials, a reduce_scatter, and a final residual add. The state changes only at the four collectives and the two column-parallel linears.">
+        <svg viewBox="0 0 580 968" role="img" aria-label="One decoder layer as a vertical flow of fourteen nodes, each a single operation. Reading down: the input is fractured with shape S by H over N. An all_gather on dim 3 makes it gathered with shape S by H. rms_norm leaves it gathered. A linear with W_qkv makes it fractured by head. sdpa leaves it fractured by head. A linear with W_o makes it partial with shape S by H. A reduce_scatter on dim 3 makes it fractured again. An add with the residual leaves it fractured. Then the same pattern repeats for the MLP: all_gather, rms_norm, a linear with w1 and w3 producing a tensor fractured on the FFN dimension, a multiply that leaves it fractured, a linear with w2 producing partials, a reduce_scatter, and a final residual add. The state changes only at the four collectives and the two column-parallel linears.">
           <defs>
             <marker id="d1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
@@ -517,7 +515,7 @@ self.n_local_heads = self.n_heads // self.cluster_shape[<span class="c-cmt">1</s
           <path d="M 270 470 L 64 470 L 64 883 L 134 883" stroke="var(--resid)" stroke-width="2" fill="none" marker-end="url(#d2)"/>
 
           <!-- ===== flow ===== -->
-          <text x="412" y="20" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ink-2)">x &#183; sharded [S, H/N]</text>
+          <text x="412" y="20" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ink-2)">x &#183; fractured [S, H/N]</text>
           <line x1="270" y1="12" x2="270" y2="32" stroke="currentColor" stroke-width="1.5" marker-end="url(#d1)"/>
 
           <rect x="140" y="34" width="260" height="34" rx="3" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
@@ -532,7 +530,7 @@ self.n_local_heads = self.n_heads // self.cluster_shape[<span class="c-cmt">1</s
           <rect x="140" y="162" width="260" height="34" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
           <text x="270" y="184" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">linear   W_qkv</text>
           <line x1="270" y1="196" x2="270" y2="224" stroke="currentColor" stroke-width="1.5" marker-end="url(#d1)"/>
-          <text x="412" y="214" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--local)">sharded by head</text>
+          <text x="412" y="214" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--local)">fractured by head</text>
 
           <rect x="140" y="226" width="260" height="34" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
           <text x="270" y="248" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">sdpa   is_causal</text>
@@ -546,7 +544,7 @@ self.n_local_heads = self.n_heads // self.cluster_shape[<span class="c-cmt">1</s
           <rect x="140" y="354" width="260" height="34" rx="3" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
           <text x="270" y="376" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">reduce_scatter   dim=3</text>
           <line x1="270" y1="388" x2="270" y2="416" stroke="currentColor" stroke-width="1.5" marker-end="url(#d1)"/>
-          <text x="412" y="406" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ink-2)">sharded [S, H/N]</text>
+          <text x="412" y="406" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ink-2)">fractured [S, H/N]</text>
 
           <rect x="140" y="418" width="260" height="34" rx="3" fill="var(--surface)" stroke="var(--resid)" stroke-width="1.5"/>
           <text x="270" y="440" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">add   residual</text>
@@ -564,7 +562,7 @@ self.n_local_heads = self.n_heads // self.cluster_shape[<span class="c-cmt">1</s
           <rect x="140" y="610" width="260" height="34" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
           <text x="270" y="632" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">linear   w1, w3</text>
           <line x1="270" y1="644" x2="270" y2="672" stroke="currentColor" stroke-width="1.5" marker-end="url(#d1)"/>
-          <text x="412" y="662" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--local)">sharded [S, F/N]</text>
+          <text x="412" y="662" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--local)">fractured [S, F/N]</text>
 
           <rect x="140" y="674" width="260" height="34" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1.5"/>
           <text x="270" y="696" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">mul   SiLU(w1) &#215; w3</text>
@@ -578,13 +576,13 @@ self.n_local_heads = self.n_heads // self.cluster_shape[<span class="c-cmt">1</s
           <rect x="140" y="802" width="260" height="34" rx="3" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
           <text x="270" y="824" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">reduce_scatter   dim=3</text>
           <line x1="270" y1="836" x2="270" y2="864" stroke="currentColor" stroke-width="1.5" marker-end="url(#d1)"/>
-          <text x="412" y="854" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ink-2)">sharded [S, H/N]</text>
+          <text x="412" y="854" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ink-2)">fractured [S, H/N]</text>
 
           <rect x="140" y="866" width="260" height="34" rx="3" fill="var(--surface)" stroke="var(--resid)" stroke-width="1.5"/>
           <text x="270" y="888" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="var(--ink)" text-anchor="middle">add   residual</text>
           <line x1="270" y1="900" x2="270" y2="922" stroke="currentColor" stroke-width="1.5" marker-end="url(#d1)"/>
 
-          <text x="270" y="944" font-family="ui-monospace, monospace" font-size="11.5" font-weight="600" fill="var(--ink)" text-anchor="middle">out &#183; sharded [S, H/N] &#8212; ready for the next layer</text>
+          <text x="270" y="944" font-family="ui-monospace, monospace" font-size="11.5" font-weight="600" fill="var(--ink)" text-anchor="middle">out &#183; fractured [S, H/N] &#8212; ready for the next layer</text>
         </svg>
       </div>
       <figcaption>One decoder layer on a line mesh. <b>Four collectives, and the state only ever changes at a
@@ -600,9 +598,9 @@ self.n_local_heads = self.n_heads // self.cluster_shape[<span class="c-cmt">1</s
       happen on-chip, and the KV cache is partitioned by head as a side effect.</p>
 
     <p><strong><code>mul</code> costs nothing either, and not because anything is replicated.</strong>
-      <code>w1</code> and <code>w3</code> are both column-parallel, so their outputs are sharded along <code>F</code>
+      <code>w1</code> and <code>w3</code> are both column-parallel, so their outputs are fractured along <code>F</code>
       <em class="term">identically</em>. Each chip multiplies its own slice by its own slice. The same reasoning covers
-      <code>add</code>: the residual and the sublayer output are sharded the same way, so the elementwise add is
+      <code>add</code>: the residual and the sublayer output are fractured the same way, so the elementwise add is
       chip-local. An elementwise op is free whenever both operands share a layout &mdash; replication is not required
       and would in fact be wasteful.</p>
 
@@ -661,7 +659,7 @@ if mesh_shape == [1, 1] or (cluster_axis == 1 and 1 in list(mesh_device.shape)):
       input untouched. Nothing crosses a wire.</p>
 
     <p>Galaxy has no <code>1</code> in <code>(4, 8)</code>, and that is deliberate: with 32 chips you want the weights
-      sharded 32 ways, not 8. So each weight is cut on <em class="term">both</em> mesh axes at once &mdash; the
+      fractured 32 ways, not 8. So each weight is cut on <em class="term">both</em> mesh axes at once &mdash; the
       <code>N</code> dimension on one axis, the <code>K</code> dimension on the other. Splitting <code>K</code> is what
       creates partials, so <strong>whichever axis holds <code>K</code> owes a reduction</strong>, and since the four
       matmuls alternate which axis that is, the collectives alternate with them:</p>
@@ -734,7 +732,7 @@ if num_devices == <span class="c-cmt">32</span>:
         &mdash; thousands of tokens through one replica &mdash; not concurrent users. Long prompts are handled by
         <em class="term">chunking</em> the sequence serially, with a per-model, per-board chunk ceiling
         (<code>model_config.py:2391</code>): Llama-70B takes 32K chunks on T3K but 128K on Galaxy.</p>
-      <p>Note this is <em class="term">not</em> Megatron-LM's sequence parallelism, which shards the norm activations
+      <p>Note this is <em class="term">not</em> Megatron-LM's sequence parallelism, which splits the norm activations
         along the sequence to save memory. This codebase gathers activations and chunks instead.</p>
     </div>
   </section>
@@ -750,7 +748,7 @@ if num_devices == <span class="c-cmt">32</span>:
         costs cancel &mdash; one collective per pair, at the narrow end of the graph.</li>
       <li><strong>Attention splits by head</strong>, which makes SDPA and the KV cache free of communication. MLP splits
         by hidden dim.</li>
-      <li><strong>The residual stream lives sharded; the norms are the gathers.</strong> If you are hunting for the
+      <li><strong>The residual stream lives fractured; the norms are the gathers.</strong> If you are hunting for the
         expensive collective in a profile, look at the norm, not the matmul.</li>
       <li><strong>A mesh with a <code>1</code> in its shape is a line and gets the simple scheme.</strong> A grid gets
         the weights cut twice and pays two more collectives per layer for a deeper split.</li>
