@@ -21,9 +21,9 @@ import json
 
 # ---------------------------------------------------------------- layout ----
 
-W_X, W_W = 8, 176        # weight box
-O_X, O_W = 248, 214      # op box
-S_X = 486                # state label column
+S_X = 270                # activation-state column, RIGHT-aligned against the op box
+O_X, O_W = 292, 214      # op box
+W_X, W_W = 530, 176      # weight box, fed in from the right
 ROW_H, PITCH = 48, 96
 TOP = 52
 
@@ -152,7 +152,7 @@ def weight_glyph(x, y, cut, mid):
 
 def render_svg(spec):
     rows, H = geometry(spec)
-    W = 764
+    W = 790
     o = []
     o.append(f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="{esc(spec["aria"])}">')
     o.append('<defs><marker id="%s-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" '
@@ -161,13 +161,12 @@ def render_svg(spec):
              'orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/></marker></defs>'
              % (spec["name"], spec["name"]))
 
-    o.append(txt(W_X, 16, "WEIGHT  ·  SECOND OPERAND", 10, "var(--muted)", weight="600"))
+    o.append(txt(S_X, 16, "ACTIVATION OUT", 10, "var(--muted)", "end", weight="600"))
     o.append(txt(O_X, 16, "OPERATION", 10, "var(--muted)", weight="600"))
-    o.append(txt(S_X, 16, "ACTIVATION OUT", 10, "var(--muted)", weight="600"))
+    o.append(txt(W_X, 16, "WEIGHT  ·  SECOND OPERAND", 10, "var(--muted)", weight="600"))
 
     cx = O_X + O_W / 2
-    o.append(txt(S_X, 34, spec["in_shape"], 11, "var(--ink)", weight="600"))
-    o.append(txt(S_X + 96, 34, spec["in_state"], 10, "var(--ink-2)"))
+    o.append(txt(S_X, 34, f'{spec["in_shape"]}   {spec["in_state"]}', 11, "var(--ink)", "end", weight="600"))
     o.append(f'<line x1="{cx}" y1="24" x2="{cx}" y2="{TOP-2}" stroke="currentColor" stroke-width="1.5" '
              f'marker-end="url(#{spec["name"]}-a)"/>')
 
@@ -189,14 +188,15 @@ def render_svg(spec):
             else:
                 o.append(txt(W_X, y + 20, r["weight"], 10, "var(--resid)"))
                 o.append(txt(W_X, y + 34, r["wnote"], 9.5, "var(--muted)"))
-            o.append(f'<line x1="{W_X+178}" y1="{y+ROW_H/2}" x2="{O_X-4}" y2="{y+ROW_H/2}" '
+            o.append(f'<line x1="{W_X-14}" y1="{y+ROW_H/2}" x2="{O_X+O_W+4}" y2="{y+ROW_H/2}" '
                      f'stroke="var(--muted)" stroke-width="1.2" marker-end="url(#{spec["name"]}-w)"/>')
 
         state_col = {"gathered": "var(--ccl)", "PARTIAL": "var(--ccl)"}.get(r["out_state"], "var(--ink-2)")
-        o.append(txt(S_X, y + 22, r["out_shape"], 11, "var(--ink)", weight="600"))
-        o.append(txt(S_X, y + 36, r["out_state"], 10, state_col, weight="600" if r["out_state"] == "PARTIAL" else None))
+        o.append(txt(S_X, y + 22, r["out_shape"], 11, "var(--ink)", "end", weight="600"))
+        o.append(txt(S_X, y + 36, r["out_state"], 10, state_col, "end",
+                     weight="600" if r["out_state"] == "PARTIAL" else None))
         if r["note"]:
-            o.append(txt(S_X, y + 50, r["note"], 9, "var(--muted)"))
+            o.append(txt(S_X, y + 50, r["note"], 9, "var(--muted)", "end"))
 
         if r is not rows[-1]:
             o.append(f'<line x1="{cx}" y1="{y+ROW_H}" x2="{cx}" y2="{y+PITCH-2}" stroke="currentColor" '
@@ -255,6 +255,11 @@ def ex_text(x, y, s, size=12, stroke="#1e1e1e", bold=False):
                  strokeWidth=2 if bold else 1)
 
 
+def ex_rtext(right_x, y, s, size=12, stroke="#1e1e1e"):
+    """Excalidraw positions text by its left edge; place it so it ends at right_x."""
+    return ex_text(right_x - len(s) * size * 0.6, y, s, size, stroke)
+
+
 def render_excalidraw(spec):
     _n[0] = 0
     rows, H = geometry(spec)
@@ -262,11 +267,11 @@ def render_excalidraw(spec):
     cx = O_X + O_W / 2
 
     els.append(ex_text(W_X, 8, spec["title"], 16, "#1e1e1e", bold=True))
-    els.append(ex_text(W_X, 34, "WEIGHT / SECOND OPERAND", 10, "#868e96"))
+    els.append(ex_rtext(S_X, 34, "ACTIVATION OUT", 10, "#868e96"))
     els.append(ex_text(O_X, 34, "OPERATION", 10, "#868e96"))
-    els.append(ex_text(S_X, 34, "ACTIVATION OUT", 10, "#868e96"))
+    els.append(ex_text(W_X, 34, "WEIGHT / SECOND OPERAND", 10, "#868e96"))
 
-    els.append(ex_text(S_X, TOP - 26, f'{spec["in_shape"]}  {spec["in_state"]}', 11))
+    els.append(ex_rtext(S_X, TOP - 26, f'{spec["in_shape"]}  {spec["in_state"]}', 11))
     els.append(ex_line(cx, TOP - 24, cx, TOP, arrow=True))
 
     for r in rows:
@@ -295,13 +300,13 @@ def render_excalidraw(spec):
             else:
                 els.append(ex_text(W_X, y + 12, r["weight"], 11, "#6741d9"))
                 els.append(ex_text(W_X, y + 28, r["wnote"], 9, "#868e96"))
-            els.append(ex_line(W_X + 178, y + ROW_H / 2, O_X - 4, y + ROW_H / 2, "#868e96", arrow=True))
+            els.append(ex_line(W_X - 14, y + ROW_H / 2, O_X + O_W + 4, y + ROW_H / 2, "#868e96", arrow=True))
 
         col = "#e8590c" if r["out_state"] in ("gathered", "PARTIAL") else "#1e1e1e"
-        els.append(ex_text(S_X, y + 8, r["out_shape"], 12))
-        els.append(ex_text(S_X, y + 24, r["out_state"], 10, col))
+        els.append(ex_rtext(S_X, y + 8, r["out_shape"], 12))
+        els.append(ex_rtext(S_X, y + 24, r["out_state"], 10, col))
         if r["note"]:
-            els.append(ex_text(S_X, y + 38, r["note"], 9, "#868e96"))
+            els.append(ex_rtext(S_X, y + 38, r["note"], 9, "#868e96"))
 
         if r is not rows[-1]:
             els.append(ex_line(cx, y + ROW_H, cx, y + PITCH, arrow=True))
