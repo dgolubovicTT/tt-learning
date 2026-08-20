@@ -240,18 +240,18 @@
           <tr><td>N150</td><td class="num">1</td><td>Wormhole</td><td class="num">(1, 1)</td><td class="num">&mdash;</td></tr>
           <tr><td>N300</td><td class="num">2</td><td>Wormhole</td><td class="num">(1, 2)</td><td class="num">1</td></tr>
           <tr><td>T3K <span style="color:var(--muted)">LoudBox / QuietBox, 4&#215; N300</span></td><td class="num">8</td><td>Wormhole</td><td class="num">(1, 8) or (2, 4)</td><td class="num">1</td></tr>
-          <tr><td>Galaxy / TG</td><td class="num">32</td><td>Wormhole</td><td class="num">(4, 8) or (8, 4)</td><td class="num">4</td></tr>
+          <tr><td>Galaxy / TG</td><td class="num">32</td><td>Wormhole</td><td class="num">(8, 4)</td><td class="num">4</td></tr>
           <tr><td>P150</td><td class="num">1</td><td>Blackhole</td><td class="num">(1, 1)</td><td class="num">&mdash;</td></tr>
           <tr><td>P300</td><td class="num">2</td><td>Blackhole</td><td class="num">(1, 2)</td><td class="num">2</td></tr>
           <tr><td>P150x4 / P150x8</td><td class="num">4 / 8</td><td>Blackhole</td><td class="num">(1, 4) / (1, 8)</td><td class="num">2</td></tr>
-          <tr><td>Blackhole Galaxy</td><td class="num">32</td><td>Blackhole</td><td class="num">(4, 8)</td><td class="num">2</td></tr>
+          <tr><td>Blackhole Galaxy</td><td class="num">32</td><td>Blackhole</td><td class="num">(8, 4)</td><td class="num">2</td></tr>
         </tbody>
       </table>
     </div>
 
     <p>Two things to carry forward. First, <strong>the mesh shape is a software view</strong> &mdash; the same 8 chips
       can be addressed as <code>(1, 8)</code> or <code>(2, 4)</code>, and a 32-chip Galaxy gets reshaped to
-      <code>(4, 8)</code> before it is carved up. Second, <strong>the number of rows is what changes the strategy.</strong>
+      <code>(4, 8)</code> only when it is carved into data-parallel submeshes. Second, <strong>the number of rows is what changes the strategy.</strong>
       A mesh with a <code>1</code> in its shape is a line, and everything below has one simple form on it. A mesh with
       both dimensions greater than one is a grid, and the same model has to be split twice.</p>
 
@@ -864,49 +864,175 @@ w2_in = ttnn.mul(w1_out, w3_out, input_tensor_a_activations=[self.activation_typ
   <section id="galaxy">
     <div class="sec-head">
       <span class="sec-tag">Two shapes of mesh</span>
-      <h2>Why Galaxy needs six collectives, not four</h2>
+      <h2>Galaxy adds a second cut, on K</h2>
     </div>
 
-    <p>The diagram above is a <em class="term">line</em> mesh &mdash; N300, T3K, a P150x8. For those, four
-      collectives is the whole story and the scheme is Megatron essentially verbatim. A Galaxy inserts two more, at
-      two specific points:</p>
+    <p>A Galaxy opens as an <code>(8, 4)</code> mesh. The head split runs on the 8-axis exactly as above. What is new
+      is that every weight takes a <em class="term">second</em> cut, on the 4-axis, and that cut lands on
+      <code>K</code> &mdash; the contracted dim.</p>
+
+    <p>Cutting <code>K</code> means cutting it on <em class="term">both</em> operands, so the activation carries the
+      identical 4-way cut. The two <code>dims</code> tuples read as <em class="term">mesh axis &#8594; tensor
+      dim</em>:</p>
+
+<pre><code><span class="c-cmt"># the weight — attention.py:268</span>
+dims = (<span class="c-cmt">3</span>, <span class="c-cmt">2</span>) if self.TG else (<span class="c-cmt">2</span>, <span class="c-cmt">3</span>)   <span class="c-cmt"># axis0 &lt;- N (dim 3),  axis1 &lt;- K (dim 2)</span>
+
+<span class="c-cmt"># the activation — model_config.py:2603</span>
+dims = (<span class="c-cmt">None</span>, -<span class="c-cmt">1</span>)                           <span class="c-cmt"># axis0 replicate,     axis1 &lt;- H  (= K)</span></code></pre>
+
+    <p>On axis 1 both are cut 4 ways &mdash; the matching cut. On axis 0 the weight's <code>N</code> is cut 8 ways
+      while the activation is replicated, which is what column-parallel needs. And since a <code>K</code> split always
+      produces partials, <strong>the second cut is what forces the extra <code>all_reduce</code>.</strong></p>
+
+    <figure class="fig-wide">
+      <div class="fig-frame">
+        <svg viewBox="0 0 880 470" role="img" aria-label="Two-D weight fracturing on an eight by four Galaxy. The weight W_qkv of shape K by N is drawn as a grid of four rows by eight columns: N is cut eight ways along mesh axis 0 and K is cut four ways along mesh axis 1. The activation X of shape S by K is cut along K in exactly the same four places, and each slice is replicated across all eight chips of axis 0. Slice b of the activation meets row b of the weight. The mesh itself has the same eight by four shape, so chip a,b simply holds block a,b. One chip multiplies an S by K over four activation slice with a K over four by N over eight weight block, giving a full-width but partial output, and an all_reduce down the four chips of a mesh column completes the sum.">
+          <defs><marker id="g2a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/></marker><marker id="g2r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ccl)"/></marker></defs>
+          <text x="246" y="34" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">WEIGHT   W_qkv  [K, N]</text>
+          <text x="246" y="50" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--local)" text-anchor="start">N = qkv width, cut 8 ways  →  mesh axis 0</text>
+          <text x="246" y="62" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--ccl)" text-anchor="start">K = H,         cut 4 ways  →  mesh axis 1</text>
+          <rect x="246" y="78" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="280" y="78" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="314" y="78" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="348" y="78" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="382" y="78" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="416" y="78" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="450" y="78" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="484" y="78" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="246" y="112" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="280" y="112" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="314" y="112" width="34" height="34" fill="var(--ccl-wash)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="314" y="112" width="34" height="34" fill="none" stroke="var(--ccl)" stroke-width="2.5"/>
+          <rect x="348" y="112" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="382" y="112" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="416" y="112" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="450" y="112" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="484" y="112" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="246" y="146" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="280" y="146" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="314" y="146" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="348" y="146" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="382" y="146" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="416" y="146" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="450" y="146" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="484" y="146" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="246" y="180" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="280" y="180" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="314" y="180" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="348" y="180" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="382" y="180" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="416" y="180" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="450" y="180" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="484" y="180" width="34" height="34" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <line x1="246" y1="70" x2="518" y2="70" stroke="var(--local)" stroke-width="1.2" marker-end="url(#g2a)"/>
+          <text x="524" y="228" font-family="ui-monospace, monospace" font-size="9" fill="var(--local)" text-anchor="start">N / 8 per chip</text>
+          <text x="236" y="146.0" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--ccl)" text-anchor="middle" transform="rotate(-90 236 146.0)">K / 4</text>
+          <text x="40" y="232" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">ACTIVATION   X  [S, K]</text>
+          <text x="40" y="248" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--ccl)" text-anchor="start">the SAME K cut, 4 ways → mesh axis 1</text>
+          <rect x="40" y="256" width="34" height="96" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <text x="57.0" y="365" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="middle">b=0</text>
+          <rect x="74" y="256" width="34" height="96" fill="var(--ccl-wash)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="74" y="256" width="34" height="96" fill="none" stroke="var(--ccl)" stroke-width="2.5"/>
+          <text x="91.0" y="365" font-family="ui-monospace, monospace" font-size="9" fill="var(--ccl)" text-anchor="middle">b=1</text>
+          <rect x="108" y="256" width="34" height="96" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <text x="125.0" y="365" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="middle">b=2</text>
+          <rect x="142" y="256" width="34" height="96" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"/>
+          <text x="159.0" y="365" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="middle">b=3</text>
+          <text x="40" y="380" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="start">K / 4 per chip · replicated across all 8 chips of axis 0</text>
+          <text x="32" y="304" font-family="ui-monospace, monospace" font-size="9.5" fill="currentColor" text-anchor="middle">S</text>
+          <path d="M 91.0 252 L 91.0 236 L 224 236 L 224 129.0 L 242 129.0" stroke="var(--ccl)" stroke-width="1.5" fill="none" stroke-dasharray="4 3" marker-end="url(#g2r)"/>
+          <text x="190" y="232" font-family="ui-monospace, monospace" font-size="9" fill="var(--ccl)" text-anchor="start">slice b of X meets row b of W</text>
+          <text x="610" y="34" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start" font-weight="600">THE MESH  (8, 4)</text>
+          <text x="610" y="50" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--muted)" text-anchor="start">same grid — chip (a,b) holds block (a,b)</text>
+          <rect x="610" y="78" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="632" y="78" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="654" y="78" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="676" y="78" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="698" y="78" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="720" y="78" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="742" y="78" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="764" y="78" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="610" y="100" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="632" y="100" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="654" y="100" width="22" height="22" fill="var(--ccl-wash)" stroke="var(--ccl)" stroke-width="2"/>
+          <rect x="676" y="100" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="698" y="100" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="720" y="100" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="742" y="100" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="764" y="100" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="610" y="122" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="632" y="122" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="654" y="122" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="676" y="122" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="698" y="122" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="720" y="122" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="742" y="122" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="764" y="122" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="610" y="144" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="632" y="144" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="654" y="144" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="676" y="144" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="698" y="144" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="720" y="144" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="742" y="144" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <rect x="764" y="144" width="22" height="22" fill="var(--surface)" stroke="var(--rule)" stroke-width="1"/>
+          <text x="610" y="182" font-family="ui-monospace, monospace" font-size="9" fill="var(--local)" text-anchor="start">a → axis 0, 8 chips</text>
+          <text x="610" y="194" font-family="ui-monospace, monospace" font-size="9" fill="var(--ccl)" text-anchor="start">b ↓ axis 1, 4 chips</text>
+          <line x1="665.0" y1="72" x2="665.0" y2="170" stroke="var(--ccl)" stroke-width="2" marker-end="url(#g2r)"/>
+          <text x="796" y="122.0" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--ccl)" text-anchor="start" font-weight="600">all_reduce</text>
+          <text x="796" y="135.0" font-family="ui-monospace, monospace" font-size="9.5" fill="var(--ccl)" text-anchor="start">cluster_axis=1</text>
+          <text x="796" y="148.0" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="start">4 chips only</text>
+          <line x1="40" y1="384" x2="840" y2="384" stroke="var(--rule)" stroke-width="1"/>
+          <text x="40" y="402" font-family="ui-monospace, monospace" font-size="10.5" fill="var(--ink)" text-anchor="start" font-weight="600">chip (a=2, b=1) computes</text>
+          <text x="40" y="420" font-family="ui-monospace, monospace" font-size="11" fill="var(--ink)" text-anchor="start">X[:, b·K/4 : (b+1)·K/4]   ×   W[b·K/4 : … ,  a·N/8 : …]   =   partial Y  [S, N/8]</text>
+          <text x="40" y="438" font-family="ui-monospace, monospace" font-size="9" fill="var(--muted)" text-anchor="start">[S, K/4]                         [K/4, N/8]                    full N/8 width, only this chip’s quarter of the sum</text>
+          <text x="40" y="458" font-family="ui-monospace, monospace" font-size="10" fill="var(--ccl)" text-anchor="start">→ all_reduce over the 4 chips sharing a=2 completes the sum. Output stays cut 8 ways on axis 0.</text>
+          </svg>
+      </div>
+      <figcaption>The mesh grid and the weight grid are the same shape, so <b>chip <code>(a, b)</code> holds block
+        <code>(a, b)</code></b>. The activation contributes only <code>b</code> &mdash; every chip in a mesh row shares
+        one slice.</figcaption>
+      <p class="figsrc">Editable source: <a href="assets/galaxy-2d.excalidraw">galaxy-2d.excalidraw</a></p>
+    </figure>
+
+    <h3>What that buys</h3>
+
+    <p>Splitting <code>N</code> is free; splitting <code>K</code> costs a collective. So <code>N</code> is split as far
+      as the model allows and only the leftover goes on <code>K</code>. That ceiling is 8, because every
+      Galaxy-class model has <code>n_kv_heads = 8</code> and a KV head cannot be divided
+      (<code>model_config.py:693</code>). Eight of thirty-two chips; <code>32 / 8 = 4</code> is what remains.</p>
 
     <div class="t-scroll">
       <table>
-        <thead>
-          <tr><th>Insert after</th><th>Extra collective</th><th>Line mesh</th></tr>
-        </thead>
+        <thead><tr><th>W_qkv, Llama-70B</th><th>Chips used</th><th>Weight per chip</th><th>Work per chip</th></tr></thead>
         <tbody>
-          <tr>
-            <td><code>linear   W_qkv</code></td>
-            <td><code>all_reduce   cluster_axis=1</code></td>
-            <td>absent</td>
-          </tr>
-          <tr>
-            <td><code>linear   w1, w3</code></td>
-            <td><code>reduce_scatter</code> then <code>all_gather</code>, both <code>cluster_axis=1</code></td>
-            <td>absent</td>
-          </tr>
+          <tr><td>1-D, <code>N</code> only</td><td class="num">8</td><td class="num">8192 &#215; 1280 = 10.5 M</td><td class="num">1 / 8</td></tr>
+          <tr><td>2-D, <code>N</code> &#215; <code>K</code></td><td class="num">32</td><td class="num">2048 &#215; 1280 = 2.6 M</td><td class="num">1 / 32</td></tr>
         </tbody>
       </table>
     </div>
 
-    <p>They really are absent on a line mesh rather than merely cheap &mdash; the helper short-circuits before any
-      wire is touched:</p>
+    <p>So the point is not memory &mdash; it is that <strong>24 chips would otherwise have nothing to do.</strong> The
+      4-way <code>K</code> split is what lets the rest of the machine participate, cutting weight footprint and
+      arithmetic per chip by 4&#215;.</p>
 
-<pre><code><span class="c-cmt"># models/tt_transformers/tt/ccl.py:150</span>
-<span class="c-cmt"># Skip CCL if single device or only 1 device on the target axis</span>
-if mesh_shape == [1, 1] or (cluster_axis == 1 and 1 in list(mesh_device.shape)):
-    return input_tensor</code></pre>
+    <p>The collective does not eat that. It moves <code>[S, N/8]</code> to enable <code>S &#215; K/4 &#215; N/8</code>
+      of work &mdash; roughly 4096 FLOPs per element communicated &mdash; and it runs on the short axis: 4 chips, one
+      mesh column, 4 links. The ratio worsens the deeper you split <code>K</code>, which is the structural reason the
+      deep split goes on <code>N</code> and the shallow one on <code>K</code>, never the reverse.</p>
 
-    <p>A T3K opened as <code>(1, 8)</code> has a <code>1</code> in its shape, so the post-QKV reduction returns its
-      input untouched. Nothing crosses a wire.</p>
+    <div class="note flag">
+      <span class="note-tag">The alternative</span>
+      <p><code>DP=4</code> also uses all 32 chips: four independent <code>(1, 8)</code> replicas, each running the
+        simple scheme with no <code>K</code> split and no extra collectives. <strong>2-D TP minimises latency for one
+        request; TP-8 &#215; DP-4 maximises throughput across four.</strong></p>
+    </div>
 
-    <p>Galaxy has no <code>1</code> in <code>(4, 8)</code>, and that is deliberate: with 32 chips you want the weights
-      fractured 32 ways, not 8. So each weight is cut on <em class="term">both</em> mesh axes at once &mdash; the
-      <code>N</code> dimension on one axis, the <code>K</code> dimension on the other. Splitting <code>K</code> is what
-      creates partials, so <strong>whichever axis holds <code>K</code> owes a reduction</strong>, and since the four
-      matmuls alternate which axis that is, the collectives alternate with them:</p>
+    <h3>Which matmul owes which reduction</h3>
+
+    <p>All four matmuls are cut on both axes, but they alternate which axis holds <code>K</code> &mdash; so the
+      collectives alternate with them:</p>
 
     <div class="t-scroll">
       <table>
@@ -914,24 +1040,24 @@ if mesh_shape == [1, 1] or (cluster_axis == 1 and 1 in list(mesh_device.shape)):
           <tr><th>Matmul</th><th>K sits on</th><th>Collective</th><th>Source</th></tr>
         </thead>
         <tbody>
-          <tr><td><code>W_qkv</code></td><td class="num">axis 1</td><td><code>all_reduce(cluster_axis=1)</code></td><td><code>attention.py:928</code></td></tr>
-          <tr><td><code>W_o</code></td><td class="num">axis 0</td><td><code>all_reduce(cluster_axis=0)</code></td><td><code>attention.py:1170</code></td></tr>
-          <tr><td><code>w1</code>, <code>w3</code></td><td class="num">axis 1</td><td><code>reduce_scatter(cluster_axis=1)</code></td><td><code>mlp.py:181</code></td></tr>
-          <tr><td><code>w2</code></td><td class="num">axis 0</td><td><code>all_reduce(cluster_axis=0)</code></td><td><code>mlp.py:302</code></td></tr>
+          <tr><td><code>W_qkv</code></td><td class="num">axis 1 (4)</td><td><code>all_reduce(cluster_axis=1)</code></td><td><code>attention.py:928</code></td></tr>
+          <tr><td><code>W_o</code></td><td class="num">axis 0 (8)</td><td><code>all_reduce(cluster_axis=0)</code></td><td><code>attention.py:1170</code></td></tr>
+          <tr><td><code>w1</code>, <code>w3</code></td><td class="num">axis 1 (4)</td><td><code>reduce_scatter(cluster_axis=1)</code></td><td><code>mlp.py:181</code></td></tr>
+          <tr><td><code>w2</code></td><td class="num">axis 0 (8)</td><td><code>all_reduce(cluster_axis=0)</code></td><td><code>mlp.py:302</code></td></tr>
         </tbody>
       </table>
     </div>
 
-    <p>The <code>dims</code> tuples that set this up read as <em class="term">mesh axis &#8594; tensor dim</em>, and they
-      flip on Galaxy:</p>
+    <p>Two of those &mdash; the ones on <code>cluster_axis=1</code> &mdash; are the extra pair a line mesh never pays.
+      They are genuinely absent there, not merely cheap, because the helper short-circuits before any wire is
+      touched:</p>
 
-<pre><code><span class="c-cmt"># attention.py:268 &#183; mlp.py:79</span>
-dims = (<span class="c-cmt">3</span>, <span class="c-cmt">2</span>) if self.TG else (<span class="c-cmt">2</span>, <span class="c-cmt">3</span>)      <span class="c-cmt"># W_qkv</span>
-w1_dims = (-<span class="c-cmt">1</span>, -<span class="c-cmt">2</span>) if args.is_galaxy else (-<span class="c-cmt">2</span>, -<span class="c-cmt">1</span>)</code></pre>
+<pre><code><span class="c-cmt"># models/tt_transformers/tt/ccl.py:150</span>
+if mesh_shape == [<span class="c-cmt">1</span>, <span class="c-cmt">1</span>] or (cluster_axis == <span class="c-cmt">1</span> and <span class="c-cmt">1</span> in list(mesh_device.shape)):
+    return input_tensor</code></pre>
 
-    <p>So Galaxy trades two extra collectives per layer for a 4&#215; deeper weight split. That is a good trade
-      precisely because those extra reductions run along a <em class="term">short</em> axis &mdash; 4 chips, with 4
-      ethernet links each &mdash; while the weight-memory saving applies to the whole 32-chip machine.</p>
+    <p>A T3K opened as <code>(1, 8)</code> has a <code>1</code> in its shape, so the post-QKV reduction returns its
+      input untouched. Six collectives per layer on a Galaxy, four on a line.</p>
   </section>
 
   <section id="dp">
